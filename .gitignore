@@ -1,0 +1,41 @@
+# ---- OS ----
+.DS_Store
+Thumbs.db
+
+# ---- IDE / Editors ----
+.idea/
+.vscode/
+.cursor/
+.kiro/
+
+# ---- Environment ----
+.env
+.env.*
+!.env.example
+
+# ---- Backend (Go) ----
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+stellar-disbursement-platform-backend
+v1_compatibility/stellar-relief-backoffice-backend
+target/
+test_snapshots/
+
+# ---- Frontend (React / Vite / Yarn) ----
+node_modules/
+.pnp
+.pnp.js
+/build
+/coverage
+.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+/public/settings/env-config.js
+/src/generated/gitInfo.ts
+/certs/

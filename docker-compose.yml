@@ -1,0 +1,68 @@
+services:
+  # ─── PostgreSQL ───────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: sdp
+      POSTGRES_PASSWORD: sdp
+      POSTGRES_DB: sdp
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sdp"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── Backend (Go) — dev server with live-reload ──────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.development
+    ports:
+      - "8000:8000"      # Application API (default: 8000)
+      - "8002:8002"      # Metrics
+      - "8003:8003"      # Admin API
+      - "2345:2345"      # Delve debugger (if using debug build)
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgres://sdp:sdp@db:5432/sdp?sslmode=disable}
+      BASE_URL: ${BASE_URL:-http://localhost:8000}
+      SDP_UI_BASE_URL: ${SDP_UI_BASE_URL:-http://localhost:3000}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+    volumes:
+      - ./backend:/src/stellar-disbursement-platform
+    working_dir: /src/stellar-disbursement-platform
+
+  # ─── Frontend (React / Vite) — dev server with HMR ──────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    env_file:
+      - .env
+    environment:
+      REACT_APP_API_URL: ${REACT_APP_API_URL:-http://localhost:8000}
+      REACT_APP_SINGLE_TENANT_MODE: ${REACT_APP_SINGLE_TENANT_MODE:-true}
+      REACT_APP_DISABLE_RECAPTCHA: ${REACT_APP_DISABLE_RECAPTCHA:-true}
+    volumes:
+      # Bind-mount source (excluding node_modules) for HMR
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.ts:/app/vite.config.ts
+      # Preserve node_modules from the image
+      - /app/node_modules
+
+volumes:
+  pgdata:

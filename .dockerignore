@@ -1,0 +1,44 @@
+# Git
+.git
+.gitignore
+.gitmodules
+
+# Environment
+.env
+.env.*
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/build/
+frontend/coverage/
+
+# Go
+backend/stellar-disbursement-platform
+backend/stellar-disbursement-platform-backend
+backend/v1_compatibility/stellar-relief-backoffice-backend
+
+# Rust / Soroban
+target/
+backend/target/
+
+# IDE
+.idea/
+.vscode/
+.cursor/
+.kiro/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+
+# Scripts / docs
+scripts/
+dev/
+README.md
+LICENSE
+CHANGELOG.md
