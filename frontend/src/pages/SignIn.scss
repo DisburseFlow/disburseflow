@@ -1,0 +1,236 @@
+@use "../styles/styles-utils.scss" as *;
+
+.SignInPage {
+  // SAPCONE brand tokens
+  --sapcone-primary: #b23e25;
+  --sapcone-primary-dark: #90321e;
+  --sapcone-primary-light: #c9563e;
+  --sapcone-green: #2f803e;
+  --sapcone-green-dark: #1f5c2b;
+  --sapcone-green-light: #3d9b4f;
+  --sapcone-green-pale: #81d190;
+
+  display: flex;
+  width: 100%;
+  height: 100%;
+
+  // ── Left hero column ───────────────────────────────────────────────────
+  &__hero {
+    width: 58%;
+    flex-shrink: 0;
+    background: linear-gradient(155deg, var(--sapcone-green-dark) 0%, var(--sapcone-green) 55%, var(--sapcone-green-light) 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: pxToRem(48px) pxToRem(56px);
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+
+    // Terracotta ambient glow — top-right
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: pxToRem(440px);
+      height: pxToRem(440px);
+      background: radial-gradient(circle at top right, rgba(178, 62, 37, 0.20), transparent 60%);
+      pointer-events: none;
+    }
+
+    // Decorative ring — bottom-left
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: pxToRem(-72px);
+      left: pxToRem(-72px);
+      width: pxToRem(320px);
+      height: pxToRem(320px);
+      border-radius: 50%;
+      border: pxToRem(90px) solid rgba(255, 255, 255, 0.04);
+      pointer-events: none;
+    }
+
+    &__brand {
+      display: flex;
+      align-items: center;
+      gap: pxToRem(14px);
+      position: relative;
+      z-index: 1;
+    }
+
+    &__logoWrap {
+      width: pxToRem(52px);
+      height: pxToRem(52px);
+      border-radius: pxToRem(12px);
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: pxToRem(6px);
+      flex-shrink: 0;
+    }
+
+    &__logoImg {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    &__orgName {
+      font-size: pxToRem(17px);
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      line-height: 1.2;
+    }
+
+    &__appName {
+      font-size: pxToRem(11px);
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      opacity: 0.6;
+      margin-top: pxToRem(3px);
+    }
+
+    &__body {
+      position: relative;
+      z-index: 1;
+      max-width: pxToRem(490px);
+    }
+
+    &__headline {
+      font-size: pxToRem(36px);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      margin: 0 0 pxToRem(16px);
+    }
+
+    &__description {
+      font-size: pxToRem(15px);
+      line-height: 1.72;
+      opacity: 0.85;
+      margin: 0 0 pxToRem(28px);
+    }
+
+    &__themes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: pxToRem(8px);
+    }
+
+    &__themeChip {
+      display: inline-block;
+      padding: pxToRem(5px) pxToRem(14px);
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      border-radius: pxToRem(100px);
+      font-size: pxToRem(12px);
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    &__footer {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: pxToRem(5px);
+    }
+
+    &__regions {
+      font-size: pxToRem(12px);
+      font-weight: 600;
+      opacity: 0.65;
+      letter-spacing: 0.04em;
+    }
+
+    &__copyright {
+      font-size: pxToRem(11px);
+      opacity: 0.4;
+    }
+  }
+
+  // ── Right form column ──────────────────────────────────────────────────
+  &__form {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: pxToRem(48px);
+    overflow-y: auto;
+    background: var(--sds-clr-gray-02);
+    position: relative;
+
+    &__themeSwitch {
+      position: absolute;
+      top: pxToRem(20px);
+      right: pxToRem(20px);
+    }
+
+    &__inner {
+      width: 100%;
+      max-width: pxToRem(400px);
+      display: flex;
+      flex-direction: column;
+      gap: pxToRem(20px);
+    }
+
+    &__header {
+      .Heading {
+        color: var(--sds-clr-gray-12);
+        margin-bottom: pxToRem(4px) !important;
+      }
+    }
+
+    &__subtitle {
+      font-size: pxToRem(14px);
+      line-height: pxToRem(22px);
+      color: var(--sds-clr-gray-10);
+      margin-top: pxToRem(4px);
+    }
+
+    // Card that wraps the form fields — mirrors .CardLayout form
+    &__card {
+      background: var(--sds-clr-gray-01);
+      border: 1px solid var(--sds-clr-gray-04);
+      border-radius: pxToRem(8px);
+      padding: pxToRem(32px);
+      display: flex;
+      flex-direction: column;
+      gap: pxToRem(24px);
+
+      .Link {
+        align-self: center;
+        margin-top: pxToRem(-8px);
+      }
+
+      // SAPCONE terracotta for the primary action
+      .Button--primary {
+        --Button-background-color: var(--sapcone-primary);
+        --Button-background-color-hover: var(--sapcone-primary-dark);
+        --Button-border-color: var(--sapcone-primary);
+        --Button-border-color-hover: var(--sapcone-primary-dark);
+        background-color: var(--sapcone-primary);
+        border-color: var(--sapcone-primary);
+
+        &:hover:not(:disabled):not([aria-disabled="true"]) {
+          background-color: var(--sapcone-primary-dark);
+          border-color: var(--sapcone-primary-dark);
+        }
+
+        &:focus-visible {
+          box-shadow: 0 0 0 pxToRem(3px) rgba(178, 62, 37, 0.28);
+          outline: none;
+        }
+      }
+    }
+  }
+}
