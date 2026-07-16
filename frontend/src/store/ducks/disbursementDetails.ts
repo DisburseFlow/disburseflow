@@ -226,6 +226,7 @@ const formatDisbursementReceivers = (items: ApiDisbursementReceiver[]): Disburse
     id: r.id,
     phoneNumber: r.phone_number,
     email: r.email,
+    name: r.name,
     provider: r.receiver_wallet.wallet.name,
     amount: r.payment.amount,
     assetCode: r.payment.asset.code,
@@ -233,4 +234,5 @@ const formatDisbursementReceivers = (items: ApiDisbursementReceiver[]): Disburse
     blockchainId: r.payment.stellar_transaction_id,
     orgId: r.external_id,
     paymentStatus: r.payment.status,
+    externalPaymentId: r.payment.external_payment_id,
   }));

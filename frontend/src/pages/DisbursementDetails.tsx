@@ -21,8 +21,8 @@ import {
 } from "@/store/ducks/disbursementDetails";
 import { useRedux } from "@/hooks/useRedux";
 import { useDownloadCsvFile } from "@/hooks/useDownloadCsvFile";
-import { STELLAR_EXPERT_URL } from "@/constants/envVariables";
-import { PAGE_LIMIT_OPTIONS, Routes } from "@/constants/settings";
+import { Routes } from "@/constants/settings";
+import { PAGE_LIMIT_OPTIONS } from "@/constants/settings";
 
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { SectionHeader } from "@/components/SectionHeader";
@@ -38,10 +38,6 @@ import { renderNumberOrDash } from "@/helpers/renderNumberOrDash";
 import { number } from "@/helpers/formatIntlNumber";
 import { formatRegistrationContactType } from "@/helpers/formatRegistrationContactType";
 import { saveFile } from "@/helpers/saveFile";
-import {
-  getReceiverContactInfoTitle,
-  renderReceiverContactInfoItems,
-} from "@/helpers/receiverContactInfo";
 import { VerificationFieldMap } from "@/types";
 
 export const DisbursementDetails = () => {
@@ -298,61 +294,52 @@ export const DisbursementDetails = () => {
         <Card noPadding>
           <Table isScrollable={true}>
             <Table.Header>
-              {/* TODO: put back once ready */}
-              {/* <Table.HeaderCell>
-              <Checkbox id="disbursement-receivers-select-all" fieldSize="xs" />
-            </Table.HeaderCell> */}
-              <Table.HeaderCell>Contact info</Table.HeaderCell>
-              <Table.HeaderCell width="8rem">Wallet provider</Table.HeaderCell>
+              <Table.HeaderCell>Name</Table.HeaderCell>
+              <Table.HeaderCell>Phone</Table.HeaderCell>
               <Table.HeaderCell textAlign="right" width="7.5rem">
                 Amount
               </Table.HeaderCell>
-              <Table.HeaderCell width="9.375rem">Completed at</Table.HeaderCell>
-              <Table.HeaderCell width="7.5rem">Blockchain ID</Table.HeaderCell>
-              <Table.HeaderCell textAlign="right" width="7.5rem">
-                Org ID
-              </Table.HeaderCell>
               <Table.HeaderCell textAlign="right" width="8.5rem">
-                Payment status
+                Status
               </Table.HeaderCell>
+              <Table.HeaderCell width="9.375rem">Completed at</Table.HeaderCell>
+              <Table.HeaderCell width="12rem">Txn code</Table.HeaderCell>
             </Table.Header>
 
             <Table.Body>
               {disbursementDetails.details.receivers.items.map((r) => (
-                <Table.BodyRow key={`${r.id}-${r.provider}-${r.orgId}`}>
-                  {/* TODO: put back once ready */}
-                  {/* <Table.BodyCell width="1rem">
-                  <Checkbox id={`receiver-${r.id}`} fieldSize="xs" />
-                </Table.BodyCell> */}
-                  <Table.BodyCell
-                    title={getReceiverContactInfoTitle(r?.phoneNumber, r?.email)}
-                    wrap={true}
-                  >
+                <Table.BodyRow key={`${r.id}-${r.externalPaymentId}`}>
+                  <Table.BodyCell>
                     <Link onClick={(event) => goToReceiver(event, r.id)}>
-                      {renderReceiverContactInfoItems(r?.phoneNumber, r?.email)}
+                      {r.name || "-"}
                     </Link>
                   </Table.BodyCell>
-                  <Table.BodyCell>{r.provider}</Table.BodyCell>
+                  <Table.BodyCell>
+                    {r.phoneNumber || r.email || "-"}
+                  </Table.BodyCell>
                   <Table.BodyCell textAlign="right">
                     <AssetAmount amount={r.amount} assetCode={r.assetCode} fallback="-" />
+                  </Table.BodyCell>
+                  <Table.BodyCell textAlign="right">
+                    <PaymentStatus status={r.paymentStatus} />
                   </Table.BodyCell>
                   <Table.BodyCell>
                     {r.completedAt ? (
                       <span className="Table-v2__cell--secondary">
                         {formatDateTime(r.completedAt)}
                       </span>
-                    ) : null}
+                    ) : (
+                      "-"
+                    )}
                   </Table.BodyCell>
-                  <Table.BodyCell textAlign="right">
-                    {r.blockchainId ? (
-                      <Link href={`${STELLAR_EXPERT_URL}/tx/${r.blockchainId}`}>
-                        {r.blockchainId}
-                      </Link>
-                    ) : null}
-                  </Table.BodyCell>
-                  <Table.BodyCell textAlign="right">{r.orgId}</Table.BodyCell>
-                  <Table.BodyCell textAlign="right">
-                    <PaymentStatus status={r.paymentStatus} />
+                  <Table.BodyCell>
+                    {r.externalPaymentId ? (
+                      <CopyWithIcon textToCopy={r.externalPaymentId} iconSizeRem="0.75">
+                        <span className="Table-v2__cell--secondary">{r.externalPaymentId}</span>
+                      </CopyWithIcon>
+                    ) : (
+                      "-"
+                    )}
                   </Table.BodyCell>
                 </Table.BodyRow>
               ))}

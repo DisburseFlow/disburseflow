@@ -307,6 +307,7 @@ export type DisbursementReceiver = {
   id: string;
   phoneNumber?: string;
   email?: string;
+  name: string;
   provider: string;
   assetCode: string;
   amount: string;
@@ -314,6 +315,7 @@ export type DisbursementReceiver = {
   blockchainId: string;
   orgId: string;
   paymentStatus: PaymentStatus;
+  externalPaymentId?: string;
 };
 
 // =============================================================================
@@ -757,6 +759,8 @@ export type ApiDisbursementReceiver = {
   phone_number?: string;
   email?: string;
   external_id: string;
+  name: string;
+  id_no?: string;
   receiver_wallet: {
     id: string;
     receiver: {
@@ -779,6 +783,7 @@ export type ApiDisbursementReceiver = {
     asset: ApiPaymentAsset;
     created_at: string;
     updated_at: string;
+    external_payment_id?: string;
   };
   created_at: string;
   updated_at: string;

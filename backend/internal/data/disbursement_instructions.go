@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/stellar/go-stellar-sdk/support/log"
 	"golang.org/x/exp/maps"
 
@@ -18,8 +20,8 @@ type DisbursementInstruction struct {
 	Email             string `csv:"email"`
 	ID                string `csv:"id"`
 	Amount            string `csv:"amount"`
-	VerificationValue string `csv:"verification"`
-	ExternalPaymentID string `csv:"paymentID"`
+	Name              string `csv:"name"`
+	IDNo              string `csv:"idno"`
 	WalletAddress     string `csv:"walletAddress"`
 	WalletAddressMemo string `csv:"walletAddressMemo"`
 }
@@ -280,8 +282,15 @@ func (di DisbursementInstructionModel) createReceiverFromInstructionIfNeeded(ctx
 		if instruction.Email != "" {
 			receiverInsert.Email = &instruction.Email
 		}
-		if instruction.ID != "" {
-			receiverInsert.ExternalID = &instruction.ID
+		// Always ensure external_id is set — use instruction.ID if provided, otherwise auto-generate.
+		externalID := instruction.ID
+		if externalID == "" {
+			externalID = uuid.New().String()
+		}
+		receiverInsert.ExternalID = &externalID
+		receiverInsert.Name = instruction.Name
+		if instruction.IDNo != "" {
+			receiverInsert.IDNo = &instruction.IDNo
 		}
 		_, insertErr := di.receiverModel.Insert(ctx, dbTx, receiverInsert)
 		if insertErr != nil {
@@ -323,23 +332,27 @@ func (di DisbursementInstructionModel) processReceiverVerifications(ctx context.
 		if instruction == nil {
 			return fmt.Errorf("instruction not found for receiver with ID %s", receiver.ID)
 		}
+
+		// Use IDNo as the verification value for all verification types.
+		verificationValue := instruction.IDNo
+
 		verification, exists := verificationByReceiverIDMap[receiver.ID]
 
 		if !exists {
 			verificationInsert := ReceiverVerificationInsert{
 				ReceiverID:        receiver.ID,
-				VerificationValue: instruction.VerificationValue,
+				VerificationValue: verificationValue,
 				VerificationField: disbursement.VerificationField,
 			}
 			_, insertErr := di.receiverVerificationModel.Insert(ctx, dbTx, verificationInsert)
 			if insertErr != nil {
 				return fmt.Errorf("error inserting receiver verification: %w", insertErr)
 			}
-		} else if !CompareVerificationValue(verification.HashedValue, instruction.VerificationValue) {
+		} else if !CompareVerificationValue(verification.HashedValue, verificationValue) {
 			if verification.ConfirmedAt != nil {
 				return fmt.Errorf("%w: receiver verification for %s doesn't match. Check instruction with ID %s", ErrReceiverVerificationMismatch, contact, instruction.ID)
 			}
-			updateErr := di.receiverVerificationModel.UpdateVerificationValue(ctx, dbTx, verification.ReceiverID, verification.VerificationField, instruction.VerificationValue)
+			updateErr := di.receiverVerificationModel.UpdateVerificationValue(ctx, dbTx, verification.ReceiverID, verification.VerificationField, verificationValue)
 			if updateErr != nil {
 				return fmt.Errorf("error updating receiver verification for disbursement id %s: %w", disbursement.ID, updateErr)
 			}
@@ -394,16 +407,15 @@ func (di DisbursementInstructionModel) createPayments(ctx context.Context, dbTx 
 		if receiver == nil {
 			return fmt.Errorf("receiver not found for instruction with ID %s", instruction.ID)
 		}
+		generatedPaymentID := generatePaymentID()
 		payment := PaymentInsert{
-			ReceiverID:       receiver.ID,
-			DisbursementID:   &disbursement.ID,
-			Amount:           instruction.Amount,
-			AssetID:          disbursement.Asset.ID,
-			ReceiverWalletID: receiverIDToReceiverWalletIDMap[receiver.ID],
-			PaymentType:      PaymentTypeDisbursement,
-		}
-		if instruction.ExternalPaymentID != "" {
-			payment.ExternalPaymentID = &instruction.ExternalPaymentID
+			ReceiverID:        receiver.ID,
+			DisbursementID:    &disbursement.ID,
+			Amount:            instruction.Amount,
+			AssetID:           disbursement.Asset.ID,
+			ReceiverWalletID:  receiverIDToReceiverWalletIDMap[receiver.ID],
+			PaymentType:       PaymentTypeDisbursement,
+			ExternalPaymentID: &generatedPaymentID,
 		}
 		payments = append(payments, payment)
 	}
@@ -413,6 +425,15 @@ func (di DisbursementInstructionModel) createPayments(ctx context.Context, dbTx 
 	}
 
 	return nil
+}
+
+// generatePaymentID generates a unique payment ID in the format sapYYYYMMDDHHMMSSmmm.
+func generatePaymentID() string {
+	now := time.Now()
+	return fmt.Sprintf("sap%04d%02d%02d%02d%02d%02d%03d",
+		now.Year(), int(now.Month()), now.Day(),
+		now.Hour(), now.Minute(), now.Second(),
+		now.Nanosecond()/1_000_000)
 }
 
 func findReceiverByInstruction(receiverMap map[string]*Receiver, instruction *DisbursementInstruction) *Receiver {

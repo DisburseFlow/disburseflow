@@ -10,34 +10,34 @@ import { Title } from "@/components/Title";
 import { formatUploadedFileDisplayName } from "@/helpers/formatUploadedFileDisplayName";
 import { saveFile } from "@/helpers/saveFile";
 
-import { NONE_VERIFICATION_VALUE, RegistrationContactType } from "@/types";
+import { RegistrationContactType } from "@/types";
 
 import "./styles.scss";
 
 const FILE_FORMAT_NOTE_ITEMS = [
   {
-    id: "phoneOrEmail",
+    id: "contact",
     text: "phone or email (mandatory) - the phone number or email address of the receiver. Phone number must be in international format and include + at the beginning.",
   },
   {
+    id: "name",
+    text: "name (mandatory) - the full name of the receiver.",
+  },
+  {
     id: "walletAddress",
-    text: "walletAddress (included only if sending via address) - the Stellar blockchain address of the receiver.",
-  },
-  {
-    id: "id",
-    text: "id (mandatory) - a unique person identifier tied to the receiver, typically to trace back to source systems.",
-  },
-  {
-    id: "amount",
-    text: "amount (mandatory) - the amount to be sent to the receiver in the asset selected above.",
-  },
-  {
-    id: "paymentId",
-    text: "paymentID (optional) - a unique payment identifier tied to the specific payment, typically to trace back to source systems.",
+    text: "walletAddress (only if sending via wallet address) - the Stellar blockchain address of the receiver.",
   },
   {
     id: "walletAddressMemo",
     text: "walletAddressMemo (optional) - if required, the Stellar transaction memo to be included alongside the address.",
+  },
+  {
+    id: "idno",
+    text: "idno (mandatory) - the National Identity Number of the receiver (8 characters), used for identity verification.",
+  },
+  {
+    id: "amount",
+    text: "amount (mandatory) - the amount to be sent to the receiver in the asset selected above.",
   },
 ];
 
@@ -56,20 +56,15 @@ export const DisbursementInstructions: React.FC<DisbursementInstructionsProps> =
   onChange,
   isDisabled,
   registrationContactType,
-  verificationField,
 }: DisbursementInstructionsProps) => {
   const getCsvTemplateName = () => {
     switch (registrationContactType) {
       case "EMAIL":
       case "PHONE_NUMBER":
-        return !verificationField
-          ? ""
-          : verificationField !== NONE_VERIFICATION_VALUE
-            ? `${registrationContactType}_${verificationField}`
-            : `${registrationContactType}`;
+        return registrationContactType;
       case "EMAIL_AND_WALLET_ADDRESS":
       case "PHONE_NUMBER_AND_WALLET_ADDRESS":
-        return `${registrationContactType}`;
+        return registrationContactType;
       default:
         return "";
     }
@@ -125,10 +120,6 @@ export const DisbursementInstructions: React.FC<DisbursementInstructionsProps> =
 
     if (!registrationContactType) {
       return "Please select Registration Contact Type";
-    }
-
-    if (["EMAIL", "PHONE_NUMEBR"].includes(registrationContactType)) {
-      return "Please select Verification type";
     }
 
     return "";
