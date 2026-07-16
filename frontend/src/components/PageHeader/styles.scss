@@ -1,37 +1,41 @@
 @use "../../styles/styles-utils.scss" as *;
 
+// ============================================================
+// PageHeader  (TopAppBar — matches sap.html <header>)
+// ============================================================
 .PageHeader {
   display: flex;
-  position: relative;
-  z-index: calc(var(--z-index-tooltip) + 1);
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  height: var(--sdp-header-height, pxToRem(80px));
+  background-color: var(--sdp-surface);           // #fff8f2 warm white
+  border-bottom: 1px solid var(--sdp-outline-variant);
+  padding: 0 pxToRem(40px);
+  gap: pxToRem(24px);
 
+  // ── Left: page title / company brand ────────────────────
+  &__logo {
+    display: flex;
+    align-items: center;
+    min-width: pxToRem(200px);
+  }
+
+  // ── Right: search + actions ──────────────────────────────
   &__content {
     flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: pxToRem(16px);
   }
 
   &__inset {
-    height: pxToRem(32px);
-    margin-top: pxToRem(16px);
-    margin-bottom: pxToRem(16px);
     display: flex;
     align-items: center;
     gap: pxToRem(12px);
-    padding: 0 pxToRem(32px);
-  }
-
-  &__logo {
-    display: block;
-    margin-left: pxToRem(-8px);
-    height: 100%;
-    min-width: pxToRem(calc(242px - (28px * 2)));
-    flex-shrink: 0;
-
-    svg {
-      display: block;
-      stroke: var(--sds-clr-gray-12);
-      height: 100%;
-      width: 100%;
-    }
   }
 
   &--left,
@@ -50,28 +54,31 @@
     justify-content: flex-end;
   }
 
+  // Authenticated state adds bottom border already present; nothing extra
   &--internal {
-    border-bottom: 1px solid var(--sds-clr-gray-05);
+    border-bottom: 1px solid var(--sdp-outline-variant);
   }
 }
 
-// Company brand
+// ============================================================
+// Company Brand  (sidebar logo area — sap.html px-6 mb-10)
+// ============================================================
 .CompanyBrand {
   display: flex;
   align-items: center;
   gap: pxToRem(12px);
-  height: pxToRem(32px);
+  height: pxToRem(40px);
 
   &__logo {
-    height: pxToRem(32px);
-    min-width: pxToRem(32px);
-    border-radius: pxToRem(16px);
-    background-color: var(--sds-clr-gray-01);
+    height: pxToRem(36px);
+    min-width: pxToRem(36px);
+    border-radius: 50%;
+    background-color: var(--sdp-surface-container-low);
+    border: 2px solid var(--sdp-outline-variant);
     flex-shrink: 0;
     flex-grow: 0;
     overflow: hidden;
     position: relative;
-
     background-size: cover;
     background-position: center center;
 
@@ -81,24 +88,124 @@
       position: absolute;
     }
   }
+
   &__name {
-    font-size: pxToRem(14px);
+    font-family: var(--sdp-ff-base);
+    font-size: pxToRem(15px);
     line-height: pxToRem(22px);
-    font-weight: var(--sds-fw-medium);
-    color: var(--sds-clr-gray-11);
+    font-weight: 600;
+    color: var(--sdp-on-surface);
     flex: 1;
   }
 }
 
-// Datetime
+// ============================================================
+// Search bar  (matches sap.html <input> in header)
+// ============================================================
+.PageHeader__search {
+  position: relative;
+  transition: transform 150ms ease;
+
+  &:focus-within {
+    transform: scale(1.03);
+  }
+
+  &__icon {
+    position: absolute;
+    left: pxToRem(12px);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--sdp-outline);
+    font-size: pxToRem(20px);
+    pointer-events: none;
+    line-height: 1;
+    font-family: 'Material Symbols Outlined';
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  }
+
+  input {
+    padding: pxToRem(8px) pxToRem(16px) pxToRem(8px) pxToRem(40px);
+    background-color: var(--sdp-surface-container-low);
+    border: 1px solid var(--sdp-outline-variant);
+    border-radius: pxToRem(9999px);
+    font-family: var(--sdp-ff-base);
+    font-size: pxToRem(14px);
+    line-height: pxToRem(20px);
+    color: var(--sdp-on-surface);
+    width: pxToRem(256px);
+    outline: none;
+    transition: border-color 200ms, box-shadow 200ms;
+
+    &::placeholder {
+      color: var(--sdp-outline);
+    }
+
+    &:focus {
+      border-color: var(--sdp-primary);
+      box-shadow: 0 0 0 3px rgba(151, 67, 14, 0.12);
+    }
+  }
+}
+
+// ============================================================
+// Icon action buttons  (bell, help — circular)
+// ============================================================
+.PageHeader__iconBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: pxToRem(40px);
+  height: pxToRem(40px);
+  border-radius: 50%;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--sdp-on-surface-variant);
+  transition: background-color 150ms;
+  font-size: pxToRem(22px);
+  font-family: 'Material Symbols Outlined';
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+
+  @media (hover: hover) {
+    &:hover {
+      background-color: var(--sdp-surface-container-low);
+    }
+  }
+}
+
+// ============================================================
+// Avatar chip
+// ============================================================
+.PageHeader__avatar {
+  width: pxToRem(36px);
+  height: pxToRem(36px);
+  border-radius: 50%;
+  background-color: var(--sdp-primary-fixed-dim);
+  border: 2px solid var(--sdp-primary);
+  overflow: hidden;
+  flex-shrink: 0;
+  margin-left: pxToRem(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--sdp-ff-base);
+  font-size: pxToRem(13px);
+  font-weight: 700;
+  color: var(--sdp-primary);
+}
+
+// ============================================================
+// Datetime  (kept for compatibility)
+// ============================================================
 .DateTime {
   display: flex;
   align-items: center;
   gap: pxToRem(8px);
-  font-size: pxToRem(14px);
-  line-height: pxToRem(22px);
-  font-weight: var(--sds-fw-medium);
-  color: var(--sds-clr-gray-11);
+  font-family: var(--sdp-ff-base);
+  font-size: pxToRem(13px);
+  line-height: pxToRem(20px);
+  font-weight: 500;
+  color: var(--sdp-on-surface-variant);
 
   &__icon {
     display: block;

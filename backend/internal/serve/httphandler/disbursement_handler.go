@@ -374,7 +374,8 @@ func (d DisbursementHandler) validateAndProcessInstructions(ctx context.Context,
 	}
 
 	skipVerification := disbursement.Wallet != nil && disbursement.Wallet.Embedded && disbursement.VerificationField == ""
-	if err := validateCSVHeaders(bytes.NewReader(buf.Bytes()), disbursement.RegistrationContactType, skipVerification); err != nil {
+	_ = skipVerification // verification is no longer part of the CSV format
+	if err := validateCSVHeaders(bytes.NewReader(buf.Bytes()), disbursement.RegistrationContactType); err != nil {
 		errMsg := fmt.Sprintf("CSV columns are not valid for registration contact type %s: %s",
 			disbursement.RegistrationContactType,
 			err)
@@ -688,13 +689,16 @@ func parseInstructionsFromCSV(ctx context.Context, reader io.Reader, contactType
 }
 
 // validateCSVHeaders validates the headers of the CSV file to make sure we're passing the correct columns.
-func validateCSVHeaders(file io.Reader, registrationContactType data.RegistrationContactType, skipVerification bool) error {
+func validateCSVHeaders(file io.Reader, registrationContactType data.RegistrationContactType) error {
 	const (
 		phoneHeader             = "phone"
 		emailHeader             = "email"
 		walletAddressHeader     = "walletAddress"
 		walletAddressMemoHeader = "walletAddressMemo"
+		nameHeader              = "name"
+		idnoHeader              = "idno"
 		verificationHeader      = "verification"
+		paymentIDHeader         = "paymentID"
 	)
 
 	headers, err := csv.NewReader(utfbom.SkipOnly(file)).Read()
@@ -702,19 +706,9 @@ func validateCSVHeaders(file io.Reader, registrationContactType data.Registratio
 		return fmt.Errorf("reading csv headers: %w", err)
 	}
 
-	hasHeaders := map[string]bool{
-		phoneHeader:             false,
-		emailHeader:             false,
-		walletAddressHeader:     false,
-		walletAddressMemoHeader: false,
-		verificationHeader:      false,
-	}
-
-	// Populate header presence map
+	hasHeaders := map[string]bool{}
 	for _, header := range headers {
-		if _, exists := hasHeaders[header]; exists {
-			hasHeaders[header] = true
-		}
+		hasHeaders[header] = true
 	}
 
 	// establish the header rules. Each registration contact type has its own rules.
@@ -725,36 +719,24 @@ func validateCSVHeaders(file io.Reader, registrationContactType data.Registratio
 
 	rules := map[data.RegistrationContactType]headerRules{
 		data.RegistrationContactTypePhone: {
-			required:   []string{phoneHeader, verificationHeader},
-			disallowed: []string{emailHeader, walletAddressHeader, walletAddressMemoHeader},
+			required:   []string{phoneHeader, nameHeader, idnoHeader},
+			disallowed: []string{emailHeader, walletAddressHeader, verificationHeader, paymentIDHeader},
 		},
 		data.RegistrationContactTypeEmail: {
-			required:   []string{emailHeader, verificationHeader},
-			disallowed: []string{phoneHeader, walletAddressHeader, walletAddressMemoHeader},
+			required:   []string{emailHeader, nameHeader, idnoHeader},
+			disallowed: []string{phoneHeader, walletAddressHeader, verificationHeader, paymentIDHeader},
 		},
 		data.RegistrationContactTypeEmailAndWalletAddress: {
-			required:   []string{emailHeader, walletAddressHeader},
-			disallowed: []string{phoneHeader, verificationHeader},
+			required:   []string{emailHeader, walletAddressHeader, nameHeader, idnoHeader},
+			disallowed: []string{phoneHeader, verificationHeader, paymentIDHeader},
 		},
 		data.RegistrationContactTypePhoneAndWalletAddress: {
-			required:   []string{phoneHeader, walletAddressHeader},
-			disallowed: []string{emailHeader, verificationHeader},
+			required:   []string{phoneHeader, walletAddressHeader, nameHeader, idnoHeader},
+			disallowed: []string{emailHeader, verificationHeader, paymentIDHeader},
 		},
 	}
 
 	rule := rules[registrationContactType]
-	if skipVerification {
-		// filter out the verification header from required headers
-		filtered := rule.required[:0]
-		for _, header := range rule.required {
-			if header != verificationHeader {
-				filtered = append(filtered, header)
-			}
-		}
-		rule.required = filtered
-		// And add it to disallowed
-		rule.disallowed = append(rule.disallowed, verificationHeader)
-	}
 
 	// Validate headers according to the rules
 	for _, req := range rule.required {

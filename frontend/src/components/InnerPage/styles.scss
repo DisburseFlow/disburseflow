@@ -1,24 +1,29 @@
 @use "../../styles/styles-utils.scss" as *;
 
+// ============================================================
+// InnerPage Layout
+// ============================================================
 .InnerPage {
   display: flex;
-  height: calc(100vh - pxToRem(65px));
+  height: calc(100vh - var(--sdp-header-height));
 
+  // ── Sidebar ──────────────────────────────────────────────
   &__sidebar {
-    width: pxToRem(242px);
+    width: var(--sdp-sidebar-width);
     flex-shrink: 0;
     flex-grow: 0;
-    border-right: 1px solid var(--sds-clr-gray-05);
+    background-color: var(--sdp-inverse-surface); // #353025 dark warm
     display: flex;
     flex-direction: column;
     overflow: auto;
+    // no border-right — header provides visual separation
 
     &--top,
     &--bottom {
-      padding: pxToRem(32px);
+      padding: pxToRem(24px) 0;
       display: flex;
       flex-direction: column;
-      gap: pxToRem(12px);
+      gap: pxToRem(2px);
     }
 
     &--top {
@@ -28,17 +33,21 @@
     &--bottom {
       flex: 1;
       justify-content: flex-end;
+      padding-bottom: pxToRem(16px);
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
     }
   }
 
+  // ── Main content area ────────────────────────────────────
   &__container {
     flex: 1;
     overflow: auto;
+    background-color: var(--sdp-background);
   }
 
   &__content {
     padding: pxToRem(32px);
-    color: var(--sds-clr-gray-12);
+    color: var(--sdp-on-surface);
     width: 100%;
     max-width: pxToRem(2000px);
     margin-left: auto;
@@ -52,49 +61,88 @@
       margin-right: auto;
     }
   }
+
+  // ── Card layout (sign-in, forgot password, etc.) ─────────
+  &--cardLayout {
+    background-color: var(--sdp-background);
+  }
 }
 
+// ============================================================
+// Sidebar Nav Items  (matches sap.html aside > nav > a)
+// ============================================================
 .Sidebar {
   &__navItem {
     display: flex;
     align-items: center;
-    gap: pxToRem(16px);
+    gap: pxToRem(12px);
+    padding: pxToRem(14px) pxToRem(24px);
+    font-family: var(--sdp-ff-base);
     font-size: pxToRem(14px);
-    line-height: pxToRem(22px);
-    font-weight: var(--sds-fw-medium);
-    color: var(--sds-clr-gray-11);
+    line-height: pxToRem(20px);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    color: rgba(236, 225, 209, 0.70); // surface-variant/70
     text-decoration: none;
-    transition: all var(--sds-anim-transition-default);
+    border-left: 3px solid transparent;
+    transition: all 200ms ease-in-out;
 
+    // The icon wrapper
     &__icon {
       display: block;
-      width: pxToRem(14px);
-      height: pxToRem(14px);
+      width: pxToRem(20px);
+      height: pxToRem(20px);
+      flex-shrink: 0;
 
+      // SDS SVG icons (existing)
       svg {
         display: block;
         width: 100%;
         height: 100%;
         stroke: currentColor;
       }
+
+      // Material Symbols icons (new)
+      .material-symbols-outlined {
+        font-size: pxToRem(20px);
+        line-height: 1;
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+      }
     }
 
     @media (hover: hover) {
       &:hover {
-        color: var(--sds-clr-gray-12);
+        color: rgba(236, 225, 209, 1);
+        background-color: rgba(46, 78, 53, 0.10);
+        padding-left: pxToRem(30px);
       }
     }
 
+    // Active / current page
     &--current {
-      color: var(--sds-clr-gray-12);
+      color: var(--sdp-primary-fixed);     // #ffdbcb — warm highlight
+      border-left-color: var(--sdp-primary-fixed);
+      background-color: rgba(46, 78, 53, 0.20);
       cursor: default;
+
+      .Sidebar__navItem__icon svg {
+        stroke: var(--sdp-primary-fixed);
+      }
+
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+      }
     }
   }
 
+  // Version / label item at the bottom
   &__item {
-    font-size: pxToRem(10px);
+    padding: pxToRem(8px) pxToRem(24px);
+    font-family: var(--sdp-ff-base);
+    font-size: pxToRem(11px);
     line-height: pxToRem(16px);
-    font-weight: var(--sds-fw-semi-bold);
-    color: var(--sds-clr-gray-11);
+    font-weight: 600;
+    color: rgba(236, 225, 209, 0.40);
+    letter-spacing: 0.04em;
   }
 }
