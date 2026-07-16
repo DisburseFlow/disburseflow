@@ -1169,3 +1169,283 @@ body {
 }
 
 // (SDS overrides moved to the root block above)
+
+// ── Sign-in two-column card redesign ──────────────────────────────────────
+.SignInWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  // Full available area: viewport minus header (65px) and InnerPage padding (32px × 2)
+  min-height: calc(100vh - #{pxToRem(129px)});
+}
+
+.SignInCard {
+  // SAPCONE brand tokens sourced from turkanapeople.org theme CSS
+  --sc-primary: #b23e25;    // terracotta — 1 618 occurrences in theme
+  --sc-primary-dk: #90321e;
+  --sc-green: #2f803e;      // forest green — 1 062 occurrences in theme
+  --sc-green-dk: #1f5c2b;
+  --sc-green-lt: #3d9b4f;
+
+  width: 75%;
+  max-width: pxToRem(1100px);
+  margin: 0 auto;
+  display: flex;
+  border-radius: pxToRem(16px);
+  overflow: hidden;
+  box-shadow:
+    0 pxToRem(2px) pxToRem(8px) rgba(0, 0, 0, 0.06),
+    0 pxToRem(8px) pxToRem(40px) rgba(0, 0, 0, 0.12);
+
+  // ── Left — SAPCONE brand hero ────────────────────────────────────────
+  &__hero {
+    width: 45%;
+    flex-shrink: 0;
+    background: linear-gradient(
+      150deg,
+      var(--sc-green-dk) 0%,
+      var(--sc-green) 55%,
+      var(--sc-green-lt) 100%
+    );
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: pxToRem(36px) pxToRem(40px);
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+
+    // Terracotta ambient glow — top-right corner
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: pxToRem(360px);
+      height: pxToRem(360px);
+      background: radial-gradient(
+        circle at top right,
+        rgba(178, 62, 37, 0.22),
+        transparent 62%
+      );
+      pointer-events: none;
+    }
+
+    // Decorative ring — bottom-left corner
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: pxToRem(-60px);
+      left: pxToRem(-60px);
+      width: pxToRem(240px);
+      height: pxToRem(240px);
+      border-radius: 50%;
+      border: pxToRem(64px) solid rgba(255, 255, 255, 0.05);
+      pointer-events: none;
+    }
+
+    &__brand {
+      display: flex;
+      align-items: center;
+      gap: pxToRem(12px);
+      position: relative;
+      z-index: 1;
+    }
+
+    &__logoWrap {
+      width: pxToRem(46px);
+      height: pxToRem(46px);
+      border-radius: pxToRem(10px);
+      background: rgba(255, 255, 255, 0.15);
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: pxToRem(6px);
+      flex-shrink: 0;
+    }
+
+    &__logoImg {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    &__orgName {
+      font-size: pxToRem(15px);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      line-height: 1.2;
+    }
+
+    &__appName {
+      font-size: pxToRem(10px);
+      font-weight: 500;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      opacity: 0.6;
+      margin-top: pxToRem(2px);
+    }
+
+    &__body {
+      position: relative;
+      z-index: 1;
+    }
+
+    &__headline {
+      font-size: pxToRem(26px);
+      font-weight: 800;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      margin: 0 0 pxToRem(12px);
+    }
+
+    &__desc {
+      font-size: pxToRem(13px);
+      line-height: 1.72;
+      opacity: 0.85;
+      margin: 0 0 pxToRem(20px);
+    }
+
+    &__themes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: pxToRem(6px);
+    }
+
+    &__chip {
+      display: inline-block;
+      padding: pxToRem(4px) pxToRem(11px);
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: pxToRem(100px);
+      font-size: pxToRem(11px);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    &__foot {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      gap: pxToRem(4px);
+
+      span {
+        font-size: pxToRem(11px);
+
+        &:first-child {
+          opacity: 0.65;
+          font-weight: 600;
+          letter-spacing: 0.04em;
+        }
+
+        &:last-child {
+          opacity: 0.4;
+        }
+      }
+    }
+  }
+
+  // ── Right — sign-in form ─────────────────────────────────────────────
+  &__form {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: pxToRem(16px);
+    padding: pxToRem(36px) pxToRem(40px);
+    background: var(--sdp-surface-container-lowest);
+    position: relative;
+    overflow-y: auto;
+
+    // SDS Notification uses --sds-clr-gray-01 (= card bg) and filled error uses
+    // --sds-clr-red-02 (#fff8f8) — both invisible against the card surface.
+    // Override via the correct --Notification-color-* properties per variant.
+    .Notification--error {
+      --Notification-color-background: rgba(186, 26, 26, 0.07);
+      --Notification-color-border: rgba(186, 26, 26, 0.30);
+
+      &.Notification--filled {
+        --Notification-color-background: rgba(186, 26, 26, 0.11);
+      }
+    }
+
+    .Notification--success {
+      --Notification-color-background: rgba(47, 128, 62, 0.07);
+      --Notification-color-border: rgba(47, 128, 62, 0.30);
+
+      &.Notification--filled {
+        --Notification-color-background: rgba(47, 128, 62, 0.11);
+      }
+    }
+
+    .Notification--primary {
+      --Notification-color-background: rgba(151, 67, 14, 0.07);
+      --Notification-color-border: rgba(151, 67, 14, 0.30);
+    }
+
+    &__themeSwitch {
+      position: absolute;
+      top: pxToRem(16px);
+      right: pxToRem(16px);
+    }
+
+    &__heading {
+      .Heading {
+        color: var(--sdp-on-surface);
+        margin-bottom: 0 !important;
+      }
+    }
+
+    &__subtitle {
+      font-size: pxToRem(13px);
+      line-height: pxToRem(20px);
+      color: var(--sdp-on-surface-variant);
+      margin-top: pxToRem(2px);
+    }
+
+    &__fields {
+      display: flex;
+      flex-direction: column;
+      gap: pxToRem(20px);
+      margin-top: pxToRem(4px);
+
+      // Flat, borderless inputs — no background, no outline
+      .Input input {
+        background-color: transparent !important;
+        border-color: transparent !important;
+        border-bottom: 1px solid var(--sdp-outline-variant) !important;
+        border-radius: 0 !important;
+        padding-left: 0 !important;
+        box-shadow: none !important;
+
+        &:focus {
+          border-bottom-color: var(--sc-primary) !important;
+          box-shadow: none !important;
+        }
+      }
+
+      .Link {
+        align-self: center;
+        margin-top: pxToRem(-4px);
+      }
+
+      // SAPCONE terracotta CTA — must override the global #root .Button--primary !important
+      .Button--primary {
+        background-color: var(--sc-primary) !important;
+        border-color: var(--sc-primary) !important;
+
+        &:hover:not(:disabled):not([aria-disabled="true"]) {
+          background-color: var(--sc-primary-dk) !important;
+          border-color: var(--sc-primary-dk) !important;
+        }
+
+        &:focus-visible {
+          box-shadow: 0 0 0 #{pxToRem(3px)} rgba(178, 62, 37, 0.28) !important;
+          outline: none;
+        }
+      }
+    }
+  }
+}
