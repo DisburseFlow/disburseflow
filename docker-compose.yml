@@ -64,5 +64,15 @@ services:
       # Preserve node_modules from the image
       - /app/node_modules
 
+  # ─── Demo Wallet (Stellar demo wallet for testing disbursements) ─
+  demo-wallet:
+    build:
+      context: ./backend/dev
+      dockerfile: Dockerfile-demo-wallet
+    ports:
+      - "4000:80"
+    volumes:
+      - ./dev/env-config-demo-wallet.js:/usr/share/nginx/html/settings/env-config.js
+
 volumes:
   pgdata:

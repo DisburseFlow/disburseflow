@@ -5,7 +5,8 @@
 SUDO := $(shell docker version >/dev/null 2>&1 || echo "sudo")
 
 .PHONY: build build-backend build-frontend \
-        dev dev-backend dev-frontend dev-setup \
+        dev dev-backend dev-frontend dev-setup setup \
+        db-migrate tenant-setup \
         test test-backend test-frontend \
         lint lint-backend lint-frontend \
         docker-build docker-compose-up docker-compose-down \
@@ -36,6 +37,11 @@ dev-setup:
 	@echo "🚀 Running dev environment setup..."
 	scripts/dev-setup.sh
 
+# Official interactive setup wizard (generates config, funds accounts, starts Docker)
+setup:
+	@echo "🚀 Launching SDP interactive setup wizard..."
+	cd backend && go run tools/sdp-setup/main.go
+
 # Prerequisite checks before dev
 .PHONY: _check-prereqs
 _check-prereqs:
@@ -56,10 +62,16 @@ dev-frontend: _check-prereqs
 	@echo "│   http://localhost:3000                           │"
 	@echo "└──────────────────────────────────────────────────┘"
 	@if [ ! -d frontend/node_modules ]; then cd frontend && yarn install; fi
-	cd frontend && yarn start 2>&1 | grep -v "fatal: Not a valid object name" || \
-		cd frontend && mkdir -p src/generated && \
-		echo "export default { commitHash: 'dev', version: 'dev' };" > src/generated/gitInfo.ts && \
-		vite
+	@# Ensure runtime env config exists (created by dev-setup)
+	@if [ ! -f frontend/public/settings/env-config.js ]; then \
+		mkdir -p frontend/public/settings && \
+		printf 'window._env_ = { API_URL: "http://localhost:8000", SINGLE_TENANT_MODE: true };\n' > frontend/public/settings/env-config.js; \
+	fi
+	cd frontend && \
+	  mkdir -p src/generated && \
+	  (git rev-parse --short HEAD >/dev/null 2>&1 && yarn git-info || \
+	    echo "export default { commitHash: 'dev', version: 'dev' };" > src/generated/gitInfo.ts) && \
+	  yarn start
 
 dev:
 	@echo "🚀 Starting both dev servers concurrently..."
@@ -98,6 +110,30 @@ lint-frontend:
 
 lint: lint-backend lint-frontend
 	@echo "✅ All lints passed."
+
+# ---------------------------------------------------------------------------
+# Database
+# ---------------------------------------------------------------------------
+tenant-setup:
+	scripts/tenant-setup.sh
+
+db-migrate:
+	@echo "┌─ Running all database migrations ────────────────┐"
+	@echo "  (requires PostgreSQL running on DATABASE_URL)"
+	@echo ""
+	@echo "  1. Admin (multi-tenant module)..."
+	cd backend && ENV_FILE=$(CURDIR)/.env go run . db admin migrate up
+	@echo "  2. TSS (transaction submission)..."
+	cd backend && ENV_FILE=$(CURDIR)/.env go run . db tss migrate up
+	@echo "  3. SDP (per-tenant)..."
+	cd backend && ENV_FILE=$(CURDIR)/.env go run . db sdp migrate up --all
+	@echo "  4. Auth (per-tenant)..."
+	cd backend && ENV_FILE=$(CURDIR)/.env go run . db auth migrate up --all
+	@echo "  5. Setting up assets/wallets for network..."
+	cd backend && ENV_FILE=$(CURDIR)/.env go run . db setup-for-network --all
+	@echo ""
+	@echo "✅ All migrations complete."
+	@echo "└──────────────────────────────────────────────────┘"
 
 # ---------------------------------------------------------------------------
 # Docker

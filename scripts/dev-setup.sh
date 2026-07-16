@@ -136,6 +136,8 @@ NETWORK_PASSPHRASE=Test SDF Network ; September 2015
 # ─── Distribution Account ─────────────────────────────────────────────────
 DISTRIBUTION_PUBLIC_KEY=${DIST_PUBLIC}
 DISTRIBUTION_SEED=${DIST_SEED}
+DISTRIBUTION_ACCOUNT_ENCRYPTION_PASSPHRASE=${DIST_SEED}
+CHANNEL_ACCOUNT_ENCRYPTION_PASSPHRASE=${DIST_SEED}
 
 # ─── Multi-tenancy ─────────────────────────────────────────────────────────
 SINGLE_TENANT_MODE=true
@@ -148,6 +150,12 @@ DISABLE_MFA=true
 
 # ─── Circle API ─────────────────────────────────────────────────────────────
 CIRCLE_API_TYPE=TRANSFERS
+
+# ─── Default Tenant (first admin user) ────────────────────────────────────
+DEFAULT_TENANT_OWNER_EMAIL=default@default.local
+DEFAULT_TENANT_OWNER_FIRST_NAME=Default
+DEFAULT_TENANT_OWNER_LAST_NAME=Owner
+DEFAULT_TENANT_DISTRIBUTION_ACCOUNT_TYPE=DISTRIBUTION_ACCOUNT.STELLAR.ENV
 
 # ─── Admin API ──────────────────────────────────────────────────────────────
 ADMIN_PORT=8003
@@ -171,8 +179,29 @@ REACT_APP_HORIZON_URL=https://horizon-testnet.stellar.org
 REACT_APP_RPC_ENABLED=false
 EOF
 
-echo ""
 echo "✅  .env created at $ENV_FILE"
+
+# ─── Create frontend runtime env config ────────────────────────────────
+# The frontend fetches /settings/env-config.js at startup to get runtime
+# configuration. In production this is generated at deploy time. For dev
+# we create it with matching values.
+echo ""
+echo "🔧 Creating frontend runtime env config..."
+mkdir -p "$REPO_ROOT/frontend/public/settings"
+
+cat > "$REPO_ROOT/frontend/public/settings/env-config.js" << 'EOF'
+window._env_ = {
+  API_URL: "http://localhost:8000",
+  DISABLE_TENANT_PREFIL_FROM_DOMAIN: "",
+  STELLAR_EXPERT_URL: "https://stellar.expert/explorer/testnet",
+  HORIZON_URL: "https://horizon-testnet.stellar.org",
+  RPC_ENABLED: false,
+  RECAPTCHA_SITE_KEY: "",
+  SINGLE_TENANT_MODE: true,
+};
+EOF
+
+echo "✅  Frontend runtime env config created"
 echo ""
 echo "┌──────────────────────────────────────────────────────┐"
 echo "│  Next:  make dev                                     │"

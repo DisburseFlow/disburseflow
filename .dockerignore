@@ -39,6 +39,7 @@ Dockerfile*
 # Scripts / docs
 scripts/
 dev/
+dev/
 README.md
 LICENSE
 CHANGELOG.md
