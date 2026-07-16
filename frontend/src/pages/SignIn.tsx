@@ -5,7 +5,7 @@ import { useDispatch } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
 import { v4 as uuidv4 } from "uuid";
 
-import { Heading, Input, Button, Notification, Link } from "@stellar/design-system";
+import { Button, Heading, Input, Link, Notification, ThemeSwitch } from "@stellar/design-system";
 
 import { ErrorWithExtras } from "@/components/ErrorWithExtras";
 import { InfoTooltip } from "@/components/InfoTooltip";
@@ -13,7 +13,7 @@ import { InfoTooltip } from "@/components/InfoTooltip";
 import { signInAction } from "@/store/ducks/userAccount";
 
 import { USE_SSO, SINGLE_TENANT_MODE } from "@/constants/envVariables";
-import { Routes, LOCAL_STORAGE_DEVICE_ID, ORG_NAME_INFO_TEXT } from "@/constants/settings";
+import { LOCAL_STORAGE_DEVICE_ID, ORG_NAME_INFO_TEXT, PROJECT_NAME, Routes } from "@/constants/settings";
 
 import { getSdpTenantName } from "@/helpers/getSdpTenantName";
 import { localStorageTenantName } from "@/helpers/localStorageTenantName";
@@ -22,7 +22,10 @@ import { signInRedirect } from "@/helpers/singleSingOn";
 import { useCaptcha } from "@/hooks/useCaptcha";
 import { useRedux } from "@/hooks/useRedux";
 
+import SapconeLogo from "@/assets/Sapcone-Logo.png";
 import { AppDispatch, resetStoreAction } from "@/store";
+
+const THEMATIC_AREAS = ["Peace & Security", "Governance", "Health", "Humanitarian", "Education", "WASH"];
 
 export const SignIn = () => {
   const dispatch: AppDispatch = useDispatch();
@@ -139,95 +142,141 @@ export const SignIn = () => {
   };
 
   return (
-    <>
-      <div className="CardLayout">
-        {showPasswordResetSuccess && (
-          <Notification variant="success" title="Password Reset Successful" isFilled={true}>
-            Your password has been reset successfully. Please log in with your new password.
-          </Notification>
-        )}
-        {isSessionExpired && (
-          <Notification
-            variant="primary"
-            title="Session expired, please sign in again"
-            isFilled={true}
-          />
-        )}
-        {!isSessionExpired && userAccount.errorString && (
-          <Notification variant="error" title="Sign in error" isFilled={true}>
-            <ErrorWithExtras
-              appError={{
-                message: userAccount.errorString,
-              }}
-            />
-          </Notification>
-        )}
+    <div className="SignInWrap">
+      <div className="SignInCard">
 
-        <form onSubmit={handleSubmit}>
-          <Heading size="sm" as="h1">
-            Sign in to Stellar Disbursement Platform
-          </Heading>
-          {!USE_SSO && (
-            <>
-              {SINGLE_TENANT_MODE ? null : (
+        {/* ── Left column — SAPCONE brand hero ── */}
+        <div className="SignInCard__hero">
+          <div className="SignInCard__hero__brand">
+            <div className="SignInCard__hero__logoWrap">
+              <img src={SapconeLogo} alt="SAPCONE" className="SignInCard__hero__logoImg" />
+            </div>
+            <div>
+              <div className="SignInCard__hero__orgName">SAPCONE</div>
+              <div className="SignInCard__hero__appName">DisburseFlow Portal</div>
+            </div>
+          </div>
+
+          <div className="SignInCard__hero__body">
+            <h2 className="SignInCard__hero__headline">Empowering Nomadic Pastoralists</h2>
+            <p className="SignInCard__hero__desc">
+              Sustainable Approaches for Community Empowerment (SAPCONE) partners with
+              marginalised communities across Northern Kenya and Southern Ethiopia, driving
+              socio-economic self-reliance and transformative, sustainable development.
+            </p>
+            <div className="SignInCard__hero__themes">
+              {THEMATIC_AREAS.map((area) => (
+                <span key={area} className="SignInCard__hero__chip">{area}</span>
+              ))}
+            </div>
+          </div>
+
+          <div className="SignInCard__hero__foot">
+            <span>Active across Northern ASAL regions</span>
+            <span>© {new Date().getFullYear()} SAPCONE Organisation. All rights reserved.</span>
+          </div>
+        </div>
+
+        {/* ── Right column — sign-in form ── */}
+        <div className="SignInCard__form">
+          {/*<div className="SignInCard__form__themeSwitch">
+            <ThemeSwitch storageKeyId={`stellarTheme:${PROJECT_NAME}`} />
+          </div>*/}
+
+          <div className="SignInCard__form__heading">
+            <Heading size="sm" as="h1">Sign in</Heading>
+            <p className="SignInCard__form__subtitle">Stellar Disbursement Platform</p>
+          </div>
+
+          {showPasswordResetSuccess && (
+            <Notification variant="success" title="Password Reset Successful" isFilled={true}>
+              Your password has been reset successfully. Please log in with your new password.
+            </Notification>
+          )}
+
+          {isSessionExpired && (
+            <Notification
+              variant="primary"
+              title="Session expired, please sign in again"
+              isFilled={true}
+            />
+          )}
+
+          {!isSessionExpired && userAccount.errorString && (
+            <Notification variant="error" title="Sign in error" isFilled={true}>
+              <ErrorWithExtras
+                appError={{
+                  message: userAccount.errorString,
+                }}
+              />
+            </Notification>
+          )}
+
+          <form onSubmit={handleSubmit} className="SignInCard__form__fields">
+            {!USE_SSO && (
+              <>
+                {SINGLE_TENANT_MODE ? null : (
+                  <Input
+                    fieldSize="sm"
+                    id="si-organization-name"
+                    name="si-organization-name"
+                    label={<InfoTooltip infoText={ORG_NAME_INFO_TEXT}>Organization name</InfoTooltip>}
+                    onChange={handleOrgNameChange}
+                    onBlur={handleOrgNameBlur}
+                    value={organizationName}
+                    type="text"
+                  />
+                )}
                 <Input
                   fieldSize="sm"
-                  id="si-organization-name"
-                  name="si-organization-name"
-                  label={<InfoTooltip infoText={ORG_NAME_INFO_TEXT}>Organization name</InfoTooltip>}
-                  onChange={handleOrgNameChange}
-                  onBlur={handleOrgNameBlur}
-                  value={organizationName}
-                  type="text"
+                  id="si-email"
+                  name="si-email"
+                  label="Email address"
+                  onChange={(e) => setEmail(e.target.value)}
+                  type="email"
                 />
-              )}
-              <Input
-                fieldSize="sm"
-                id="si-email"
-                name="si-email"
-                label="Email address"
-                onChange={(e) => setEmail(e.target.value)}
-                type="email"
-              />
-              <Input
-                fieldSize="sm"
-                id="si-password"
-                name="si-password"
-                label="Password"
-                isPassword
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              {captcha.isV2 && (
-                <Recaptcha
-                  ref={recaptchaRef}
-                  size="normal"
-                  sitekey={captcha.siteKey}
-                  onChange={captcha.onRecaptchaV2Change}
+                <Input
+                  fieldSize="sm"
+                  id="si-password"
+                  name="si-password"
+                  label="Password"
+                  isPassword
+                  onChange={(e) => setPassword(e.target.value)}
                 />
-              )}
-            </>
-          )}
-          {USE_SSO ? (
-            <Button variant="tertiary" size="md" type="button" onClick={signInRedirect}>
-              Single Sign On
-            </Button>
-          ) : (
-            <Button
-              variant="primary"
-              size="md"
-              type="submit"
-              disabled={!organizationName || !email || !password || captcha.isPending}
-              isLoading={userAccount.status === "PENDING"}
-            >
-              Sign in
-            </Button>
-          )}
+                {captcha.isV2 && (
+                  <Recaptcha
+                    ref={recaptchaRef}
+                    size="normal"
+                    sitekey={captcha.siteKey}
+                    onChange={captcha.onRecaptchaV2Change}
+                  />
+                )}
+              </>
+            )}
 
-          <Link role="button" size="sm" variant="primary" onClick={goToForgotPassword}>
-            Forgot Password?
-          </Link>
-        </form>
+            {USE_SSO ? (
+              <Button variant="tertiary" size="md" type="button" onClick={signInRedirect}>
+                Single Sign On
+              </Button>
+            ) : (
+              <Button
+                variant="primary"
+                size="md"
+                type="submit"
+                disabled={!organizationName || !email || !password || captcha.isPending}
+                isLoading={userAccount.status === "PENDING"}
+              >
+                Sign in
+              </Button>
+            )}
+
+            <Link role="button" size="sm" variant="primary" onClick={goToForgotPassword}>
+              Forgot Password?
+            </Link>
+          </form>
+        </div>
+
       </div>
-    </>
+    </div>
   );
 };
