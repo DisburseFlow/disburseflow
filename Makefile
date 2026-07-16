@@ -1,5 +1,5 @@
 # =============================================================================
-# Stellar Disbursement Platform — Monorepo Makefile
+# DisburseFlow — Project Makefile
 # =============================================================================
 
 SUDO := $(shell docker version >/dev/null 2>&1 || echo "sudo")

@@ -7,7 +7,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$REPO_ROOT"
 
 echo "┌──────────────────────────────────────────────────────┐"
-echo "│  SDP Monorepo — Dev Environment Setup                │"
+echo "│  DisburseFlow — Dev Environment Setup                │"
 echo "└──────────────────────────────────────────────────────┘"
 echo ""
 
@@ -104,7 +104,7 @@ if ! git rev-parse --short HEAD &>/dev/null; then
   echo ""
   echo "📝 Making initial commit so git-info script works..."
   git add -A
-  git commit -m "Initial monorepo setup" --allow-empty
+  git commit -m "Initial commit" --allow-empty
   echo "✅  Initial commit created"
 fi
 

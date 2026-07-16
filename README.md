@@ -1,6 +1,6 @@
 # Stellar Disbursement Platform (SDP)
 
-A monorepo containing the **Stellar Disbursement Platform** — a web application for
+An open-source project for the **Stellar Disbursement Platform** — a web application for
 organizations to disburse bulk payments to recipients using the Stellar network.
 
 > 📖 **Official documentation:** [developers.stellar.org/docs/platforms/stellar-disbursement-platform](https://developers.stellar.org/docs/platforms/stellar-disbursement-platform/admin-guide/getting-started)
@@ -149,7 +149,7 @@ docker compose -f backend/dev/docker-compose.yml --env-file backend/dev/.env up
 ## Project Structure
 
 ```
-monorepo/
+./
 ├── Makefile                #  Build orchestrator
 ├── Dockerfile              #  Multi-stage production image
 ├── docker-compose.yml      #  Local development stack
