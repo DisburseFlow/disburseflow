@@ -1,0 +1,147 @@
+services:
+  db:
+    container_name: e2e-sdp-v2-database
+    image: postgres:14-alpine
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_DB: e2e-sdp
+      PGDATA: /data/postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - e2e-postgres-db:/data/postgres
+
+  sdp-api:
+    container_name: e2e-sdp-api
+    image: stellar/sdp-v2:latest
+    build:
+      context: ../../../
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+      - "8003:8003"
+    environment:
+      BASE_URL: http://stellar.local:8000
+      DATABASE_URL: postgres://postgres@db:5432/e2e-sdp?sslmode=disable
+      ENVIRONMENT: localhost
+      LOG_LEVEL: TRACE
+      PORT: "8000"
+      METRICS_PORT: "8002"
+      METRICS_TYPE: PROMETHEUS
+      EMAIL_SENDER_TYPE: DRY_RUN
+      SMS_SENDER_TYPE: DRY_RUN
+      NETWORK_PASSPHRASE: ${NETWORK_PASSPHRASE:-Test SDF Network ; September 2015}
+      HORIZON_URL: ${HORIZON_URL:-https://horizon-testnet.stellar.org}
+      RPC_URL: ${RPC_URL:-https://soroban-testnet.stellar.org}
+      SEP10_SIGNING_PUBLIC_KEY: ${SEP10_SIGNING_PUBLIC_KEY}
+      SEP45_CONTRACT_ID: ${SEP45_CONTRACT_ID:-CDY4CS2VWHAZOMYVTKUFKGNZKIVFBCXUFNFQ5KSXOTAHKL5H5ZRTAUTH}
+      SEP10_SIGNING_PRIVATE_KEY: ${SEP10_SIGNING_PRIVATE_KEY}
+      DISTRIBUTION_PUBLIC_KEY: ${DISTRIBUTION_PUBLIC_KEY}
+      RECAPTCHA_SITE_KEY: 6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI
+      CORS_ALLOWED_ORIGINS: "*"
+      DISABLE_MFA: "true"
+      DISABLE_RECAPTCHA: "true"
+      SEP10_CLIENT_ATTRIBUTION_REQUIRED: "false"
+
+      # multi-tenant
+      INSTANCE_NAME: "e2e-sdp"
+      SCHEDULER_RECEIVER_INVITATION_JOB_SECONDS: "5"
+      SCHEDULER_PAYMENT_JOB_SECONDS: "5"
+
+      # multi-tenant secrets:
+      ADMIN_ACCOUNT: SDP-admin
+      ADMIN_API_KEY: api_key_1234567890
+
+      # integration tests vars
+      TENANT_NAME: "integration-tests"
+      USER_EMAIL: ${USER_EMAIL}
+      USER_PASSWORD: ${USER_PASSWORD}
+      DISBURSED_ASSET_CODE: ${DISBURSED_ASSET_CODE} # e.g. USDC, XLM, etc.
+      DISBURSED_ASSET_ISSUER: ${DISBURSED_ASSET_ISSUER} # e.g. GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5
+      RECEIVER_ACCOUNT_PUBLIC_KEY: GCDYFAJSZPH3RCXL6NWMMOY54CXNUBYFTDCBW7GGG6VPBW3WSDKSB2NU
+      RECEIVER_ACCOUNT_PRIVATE_KEY: SDSAVUWVNOFG2JEHKIWEUHAYIA6PLGEHLMHX2TMVKEQGZKOFQ7XXKDFE
+      DISTRIBUTION_ACCOUNT_TYPE: ${DISTRIBUTION_ACCOUNT_TYPE}
+      DISBURSEMENT_CSV_FILE_PATH: resources
+      DISBURSEMENT_CSV_FILE_NAME: ${DISBURSEMENT_CSV_FILE_NAME}
+      REGISTRATION_CONTACT_TYPE: ${REGISTRATION_CONTACT_TYPE}
+      SERVER_API_BASE_URL: http://localhost:8000
+      ADMIN_SERVER_BASE_URL: http://localhost:8003
+      ADMIN_SERVER_ACCOUNT_ID: SDP-admin
+      ADMIN_SERVER_API_KEY: api_key_1234567890
+      CIRCLE_USDC_WALLET_ID: ${CIRCLE_USDC_WALLET_ID}
+
+      # embedded wallet integration tests
+      ENABLE_EMBEDDED_WALLETS: ${ENABLE_EMBEDDED_WALLETS:-true}
+      EMBEDDED_WALLETS_WASM_HASH: ${EMBEDDED_WALLETS_WASM_HASH:-9b784817dff1620a3e2b223fe1eb8dac56e18980dea9726f692847ccbbd3a853}
+
+      # secrets:
+      AWS_ACCESS_KEY_ID: MY_AWS_ACCESS_KEY_ID
+      AWS_REGION: MY_AWS_REGION
+      AWS_SECRET_ACCESS_KEY: MY_AWS_SECRET_ACCESS_KEY
+      AWS_SES_SENDER_ID: MY_AWS_SES_SENDER_ID
+      TWILIO_ACCOUNT_SID: MY_TWILIO_ACCOUNT_SID
+      TWILIO_AUTH_TOKEN: MY_TWILIO_AUTH_TOKEN
+      TWILIO_SERVICE_SID: MY_TWILIO_SERVICE_SID
+      EC256_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgdo6o+tdFkF94B7z8\nnoybH6/zO3PryLLjLbj54/zOi4WhRANCAAQncc2mE8AQoe+1GOyXkqPBz21MypLa\nmZg3JusuzFnpy5C+DbKIShdmLE/ZwnvtywcKVcLpxvXBCn8E0YO8Yqg+\n-----END PRIVATE KEY-----"
+      SEP24_JWT_SECRET: jwt_secret_ducrCcqnKmIqG6mYG48Hqlf9TWb7CJh4
+      RECAPTCHA_SITE_SECRET_KEY: 6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe
+      DISTRIBUTION_SEED: ${DISTRIBUTION_SEED}
+      CHANNEL_ACCOUNT_ENCRYPTION_PASSPHRASE: ${DISTRIBUTION_SEED}
+      DISTRIBUTION_ACCOUNT_ENCRYPTION_PASSPHRASE: ${DISTRIBUTION_SEED}
+      CIRCLE_API_KEY: ${CIRCLE_API_KEY}
+    entrypoint: ""
+    command:
+      - sh
+      - -c
+      - |
+        sleep 5
+        ./stellar-disbursement-platform db admin migrate up
+        ./stellar-disbursement-platform db tss migrate up
+        ./stellar-disbursement-platform db auth migrate up --all
+        ./stellar-disbursement-platform db sdp migrate up --all
+        ./stellar-disbursement-platform db setup-for-network --all
+        ./stellar-disbursement-platform serve
+    depends_on:
+      db:
+        condition: service_started
+
+  tss:
+    container_name: e2e-sdp-tss
+    image: stellar/sdp-v2:latest
+    ports:
+      - "9000:9000"
+    environment:
+      QUEUE_POLLING_INTERVAL: "6"
+      DATABASE_URL: postgres://postgres@db:5432/e2e-sdp?sslmode=disable
+      NETWORK_PASSPHRASE: ${NETWORK_PASSPHRASE:-Test SDF Network ; September 2015}
+      HORIZON_URL: ${HORIZON_URL:-https://horizon-testnet.stellar.org}
+      NUM_CHANNEL_ACCOUNTS: "1"
+      MAX_BASE_FEE: "1000000"
+      TSS_METRICS_PORT: "9002"
+      TSS_METRICS_TYPE: "TSS_PROMETHEUS"
+      DISTRIBUTION_PUBLIC_KEY: ${DISTRIBUTION_PUBLIC_KEY}
+      DISTRIBUTION_SEED: ${DISTRIBUTION_SEED}
+      CHANNEL_ACCOUNT_ENCRYPTION_PASSPHRASE: ${DISTRIBUTION_SEED}
+      DISTRIBUTION_ACCOUNT_ENCRYPTION_PASSPHRASE: ${DISTRIBUTION_SEED}
+      # Embedded wallet support - required for Soroban contract deployment
+      RPC_URL: ${RPC_URL:-https://soroban-testnet.stellar.org}
+      ENABLE_EMBEDDED_WALLETS: ${ENABLE_EMBEDDED_WALLETS:-true}
+      EMBEDDED_WALLETS_WASM_HASH: ${EMBEDDED_WALLETS_WASM_HASH:-9b784817dff1620a3e2b223fe1eb8dac56e18980dea9726f692847ccbbd3a853}
+    depends_on:
+      - db
+      - sdp-api
+    entrypoint: ""
+    command:
+      - sh
+      - -c
+      - |
+        sleep 30
+        ./stellar-disbursement-platform channel-accounts verify --delete-invalid-accounts
+        ./stellar-disbursement-platform channel-accounts ensure 1
+        ./stellar-disbursement-platform tss
+
+volumes:
+  e2e-postgres-db:
+    driver: local
+  e2e-postgres-ap-db:
+    driver: local

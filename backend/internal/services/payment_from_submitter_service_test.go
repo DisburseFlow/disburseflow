@@ -1,0 +1,662 @@
+package services
+
+import (
+	"context"
+	"database/sql"
+	"fmt"
+	"strconv"
+	"testing"
+
+	"github.com/google/uuid"
+	"github.com/lib/pq"
+	"github.com/shopspring/decimal"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/stellar/stellar-disbursement-platform-backend/db"
+	"github.com/stellar/stellar-disbursement-platform-backend/db/dbtest"
+	"github.com/stellar/stellar-disbursement-platform-backend/internal/data"
+	txSubStore "github.com/stellar/stellar-disbursement-platform-backend/internal/transactionsubmission/store"
+)
+
+type testContext struct {
+	tssModel *txSubStore.TransactionModel
+	sdpModel *data.Models
+	ctx      context.Context
+	tenantID string
+}
+
+func setupTestContext(t *testing.T, dbConnectionPool db.DBConnectionPool) *testContext {
+	t.Helper()
+
+	models, err := data.NewModels(dbConnectionPool)
+	require.NoError(t, err)
+	tssModel := txSubStore.NewTransactionModel(models.DBConnectionPool)
+
+	return &testContext{
+		tssModel: tssModel,
+		sdpModel: models,
+		ctx:      context.Background(),
+		tenantID: uuid.NewString(),
+	}
+}
+
+func Test_PaymentFromSubmitterService_SyncBatchTransactions(t *testing.T) {
+	dbt := dbtest.Open(t)
+	defer dbt.Close()
+
+	dbConnectionPool, outerErr := db.OpenDBConnectionPool(dbt.DSN)
+	require.NoError(t, outerErr)
+	defer dbConnectionPool.Close()
+
+	testCtx := setupTestContext(t, dbConnectionPool)
+	ctx := testCtx.ctx
+
+	monitorService := NewPaymentFromSubmitterService(testCtx.sdpModel, dbConnectionPool)
+
+	// create fixtures
+	wallet := data.CreateWalletFixture(t, ctx, dbConnectionPool,
+		"My Wallet",
+		"https://www.wallet.com",
+		"www.wallet.com",
+		"wallet1://")
+	asset := data.CreateAssetFixture(t, ctx, dbConnectionPool,
+		"USDC",
+		"GABC65XJDMXTGPNZRCI6V3KOKKWVK55UEKGQLONRIVYPMEJNNQ45YOEE")
+
+	// create disbursements
+	startedDisbursement := data.CreateDisbursementFixture(t, ctx, dbConnectionPool, testCtx.sdpModel.Disbursements, &data.Disbursement{
+		Name:   "ready disbursement",
+		Status: data.StartedDisbursementStatus,
+		Asset:  asset,
+		Wallet: wallet,
+	})
+
+	// create disbursement receivers
+	receiver1 := data.CreateReceiverFixture(t, ctx, dbConnectionPool, &data.Receiver{})
+	receiver2 := data.CreateReceiverFixture(t, ctx, dbConnectionPool, &data.Receiver{})
+	receiver3 := data.CreateReceiverFixture(t, ctx, dbConnectionPool, &data.Receiver{})
+	receiver4 := data.CreateReceiverFixture(t, ctx, dbConnectionPool, &data.Receiver{})
+
+	rw1 := data.CreateReceiverWalletFixture(t, ctx, dbConnectionPool, receiver1.ID, wallet.ID, data.RegisteredReceiversWalletStatus)
+	rw2 := data.CreateReceiverWalletFixture(t, ctx, dbConnectionPool, receiver2.ID, wallet.ID, data.RegisteredReceiversWalletStatus)
+	rw3 := data.CreateReceiverWalletFixture(t, ctx, dbConnectionPool, receiver3.ID, wallet.ID, data.RegisteredReceiversWalletStatus)
+	rw4 := data.CreateReceiverWalletFixture(t, ctx, dbConnectionPool, receiver4.ID, wallet.ID, data.RegisteredReceiversWalletStatus)
+
+	payment1 := data.CreatePaymentFixture(t, ctx, dbConnectionPool, testCtx.sdpModel.Payment, &data.Payment{
+		ReceiverWallet: rw1,
+		Disbursement:   startedDisbursement,
+		Asset:          *asset,
+		Amount:         "100",
+		Status:         data.ReadyPaymentStatus,
+	})
+	payment2 := data.CreatePaymentFixture(t, ctx, dbConnectionPool, testCtx.sdpModel.Payment, &data.Payment{
+		ReceiverWallet: rw2,
+		Disbursement:   startedDisbursement,
+		Asset:          *asset,
+		Amount:         "200",
+		Status:         data.ReadyPaymentStatus,
+	})
+	payment3 := data.CreatePaymentFixture(t, ctx, dbConnectionPool, testCtx.sdpModel.Payment, &data.Payment{
+		ReceiverWallet: rw3,
+		Disbursement:   startedDisbursement,
+		Asset:          *asset,
+		Amount:         "300",
+		Status:         data.ReadyPaymentStatus,
+	})
+	payment4 := data.CreatePaymentFixture(t, ctx, dbConnectionPool, testCtx.sdpModel.Payment, &data.Payment{
+		ReceiverWallet: rw4,
+		Disbursement:   startedDisbursement,
+		Asset:          *asset,
+		Amount:         "400",
+		Status:         data.ReadyPaymentStatus,
+	})
+	payment5 := data.CreatePaymentFixture(t, ctx, dbConnectionPool, testCtx.sdpModel.Payment, &data.Payment{
+		ReceiverWallet: rw4,
+		Disbursement:   startedDisbursement,
+		Asset:          *asset,
+		Amount:         "400",
+		Status:         data.ReadyPaymentStatus,
+	})
+
+	payments := []*data.Payment{payment1, payment2, payment3, payment4, payment5}
+
+	// Creating TSS transactions
+	transactions := createTSSTxs(t, testCtx, payments...)
+
+	// Update Hash and status of transactions to simulate success
+	prepareTxsForSync(t, testCtx, transactions)
+
+	// Fail the last transaction
+	updatedTransactions := updateTSSTransactionsToError(t, testCtx, []payloadToUpdateTSSTxToError{
+		{transactionID: transactions[3].ID, statusMessages: "test-error"},
+		{transactionID: transactions[4].ID, statusMessages: "another-test-error"},
+	})
+	require.Len(t, updatedTransactions, 2)
+	for _, updatedTransaction := range updatedTransactions {
+		utx := updatedTransaction
+		for i, transaction := range transactions {
+			if updatedTransaction.ID == transaction.ID {
+				transactions[i] = &utx
+				break
+			}
+		}
+	}
+
+	t.Run("sync tss transactions successfully", func(t *testing.T) {
+		// We call sync batch transactions for all txs
+		err := monitorService.SyncBatchTransactions(ctx, len(transactions), testCtx.tenantID)
+		require.NoError(t, err)
+
+		// check that successful payments are updated
+		for _, p := range []*data.Payment{payment1, payment2, payment3} {
+			payment, paymentErr := testCtx.sdpModel.Payment.Get(ctx, p.ID, dbConnectionPool)
+			require.NoError(t, paymentErr)
+			require.Equal(t, data.SuccessPaymentStatus, payment.Status)
+			txs, txErr := testCtx.tssModel.GetAllByExternalIDs(ctx, []string{p.ID})
+			require.NoError(t, txErr)
+			require.Len(t, txs, 1)
+			require.Equal(t, fmt.Sprintf("test-hash-%s", txs[0].ID), payment.StellarTransactionID)
+			assert.Equal(t, "GDOSPKDCGMYZTPHXPFAZSSVIHNKBPEGQXQVEWEJ4JXMKYZNXEVCFGMC2", payment.SenderAddress)
+		}
+
+		// check that failed payment is updated
+		payment, paymentErr := testCtx.sdpModel.Payment.Get(ctx, payment4.ID, dbConnectionPool)
+		require.NoError(t, paymentErr)
+		require.Equal(t, data.FailedPaymentStatus, payment.Status)
+		txs, txErr := testCtx.tssModel.GetAllByExternalIDs(ctx, []string{payment4.ID})
+		require.NoError(t, txErr)
+		require.Len(t, txs, 1)
+		require.Equal(t, fmt.Sprintf("test-hash-%s", txs[0].ID), payment.StellarTransactionID)
+		require.Len(t, payment.StatusHistory, 3)
+		require.Equal(t, payment.StatusHistory[2].Status, data.FailedPaymentStatus)
+		require.Equal(t, payment.StatusHistory[2].StatusMessage, "test-error")
+		assert.Equal(t, "GDOSPKDCGMYZTPHXPFAZSSVIHNKBPEGQXQVEWEJ4JXMKYZNXEVCFGMC2", payment.SenderAddress)
+
+		payment, paymentErr = testCtx.sdpModel.Payment.Get(ctx, payment5.ID, dbConnectionPool)
+		require.NoError(t, paymentErr)
+		require.Equal(t, data.FailedPaymentStatus, payment.Status)
+		txs, txErr = testCtx.tssModel.GetAllByExternalIDs(ctx, []string{payment5.ID})
+		require.NoError(t, txErr)
+		require.Len(t, txs, 1)
+		require.Equal(t, fmt.Sprintf("test-hash-%s", txs[0].ID), payment.StellarTransactionID)
+		require.Len(t, payment.StatusHistory, 3)
+		require.Equal(t, payment.StatusHistory[2].Status, data.FailedPaymentStatus)
+		require.Equal(t, payment.StatusHistory[2].StatusMessage, "another-test-error")
+
+		// validate transactions synced_at is updated.
+		txs, txErr = testCtx.tssModel.GetAllByExternalIDs(ctx, []string{payment1.ID, payment2.ID, payment3.ID, payment4.ID, payment5.ID})
+		require.NoError(t, txErr)
+		require.Len(t, txs, 5)
+
+		for _, tx := range txs {
+			require.NotNil(t, tx.SyncedAt)
+		}
+	})
+
+	t.Run("error when hash is invalid", func(t *testing.T) {
+		prepareTxsForSync(t, testCtx, transactions)
+		q := `UPDATE submitter_transactions SET stellar_transaction_hash = '' WHERE id = $1`
+		_, err := dbConnectionPool.ExecContext(ctx, q, transactions[0].ID)
+		require.NoError(t, err)
+
+		err = monitorService.SyncBatchTransactions(ctx, len(transactions), testCtx.tenantID)
+		require.Error(t, err)
+		require.ErrorContainsf(t, err, "stellar transaction id is required", "error: %s", err.Error())
+	})
+
+	t.Run("payment is not pending", func(t *testing.T) {
+		prepareTxsForSync(t, testCtx, transactions)
+		updatePaymentStatus(t, testCtx, payment1.ID, data.SuccessPaymentStatus)
+
+		err := monitorService.SyncBatchTransactions(ctx, len(transactions), testCtx.tenantID)
+		require.Error(t, err)
+		contains := fmt.Sprintf("updating payment ID %s for transaction ID %s: cannot transition from SUCCESS to SUCCESS for payment %s: cannot transition from SUCCESS to SUCCESS", payment1.ID, transactions[0].ID, payment1.ID)
+		require.ErrorContainsf(t, err, contains, "error: %s", err.Error())
+	})
+
+	t.Run("error for orphaned transactions", func(t *testing.T) {
+		prepareTxsForSync(t, testCtx, transactions)
+		// insert a transaction that is not associated with a payment
+		paymentID := "dummy_payment_id"
+
+		tenantID := uuid.NewString()
+		tx, err := testCtx.tssModel.Insert(ctx, txSubStore.Transaction{
+			ExternalID:      paymentID,
+			TransactionType: txSubStore.TransactionTypePayment,
+			Payment: txSubStore.Payment{
+				AssetCode:   asset.Code,
+				AssetIssuer: asset.Issuer,
+				Amount:      decimal.NewFromInt(100),
+				Destination: rw1.StellarAddress,
+			},
+			TenantID: tenantID,
+		})
+		require.NoError(t, err)
+
+		// Update transactions states PENDING->PROCESSING:
+		q := `UPDATE submitter_transactions SET stellar_transaction_hash = 'dummy_hash_123', status=$1 WHERE id = $2 RETURNING ` + txSubStore.TransactionColumnNames("", "")
+		err = dbConnectionPool.GetContext(ctx, tx, q, txSubStore.TransactionStatusProcessing, tx.ID)
+		require.NoError(t, err)
+
+		tx, err = testCtx.tssModel.UpdateStatusToSuccess(ctx, *tx)
+		require.NoError(t, err)
+		assert.Equal(t, txSubStore.TransactionStatusSuccess, tx.Status)
+		assert.NotEmpty(t, tx.CompletedAt)
+
+		err = monitorService.SyncBatchTransactions(ctx, len(transactions)+1, tenantID)
+		assert.ErrorContains(t, err, fmt.Sprintf("expected exactly 1 payment for the transaction ID %s but found 0", tx.ID))
+	})
+
+	t.Run("skips wallet creation transactions", func(t *testing.T) {
+		prepareTxsForSync(t, testCtx, transactions)
+
+		// Insert a wallet creation transaction that should be ignored
+		walletToken := "wallet-token-123"
+		tenantID := uuid.NewString()
+		walletTx, err := testCtx.tssModel.Insert(ctx, txSubStore.Transaction{
+			ExternalID:      walletToken,
+			TransactionType: txSubStore.TransactionTypeWalletCreation,
+			WalletCreation: txSubStore.WalletCreation{
+				PublicKey: "04f5549c5ef833ab0ade80d9c1f3fb34fb93092503a8ce105773d676288653df384a024a92cc73cb8089c45ed76ed073433b6a72c64a6ed23630b77327beb65f23",
+				WasmHash:  "a5016f845e76fe452de6d3638ac47523b845a813db56de3d713eb7a49276e254",
+			},
+			TenantID: tenantID,
+		})
+		require.NoError(t, err)
+
+		// Update wallet transaction to SUCCESS
+		q := `UPDATE submitter_transactions SET stellar_transaction_hash = 'wallet_hash_123', status=$1 WHERE id = $2 RETURNING ` + txSubStore.TransactionColumnNames("", "")
+		err = dbConnectionPool.GetContext(ctx, walletTx, q, txSubStore.TransactionStatusProcessing, walletTx.ID)
+		require.NoError(t, err)
+
+		walletTx, err = testCtx.tssModel.UpdateStatusToSuccess(ctx, *walletTx)
+		require.NoError(t, err)
+
+		// Sync should succeed and skip the wallet creation transaction
+		err = monitorService.SyncBatchTransactions(ctx, len(transactions)+1, tenantID)
+		require.NoError(t, err)
+
+		// Verify wallet transaction was NOT marked as synced (since it was skipped)
+		updatedWalletTx, err := testCtx.tssModel.GetTransactionPendingUpdateByID(ctx, dbConnectionPool, walletTx.ID, txSubStore.TransactionTypeWalletCreation)
+		require.NoError(t, err)
+		assert.Equal(t, walletTx.ID, updatedWalletTx.ID, "wallet transaction should still be pending sync")
+	})
+
+	t.Run("batch sync filters and ignores invalid wallet creation transactions", func(t *testing.T) {
+		prepareTxsForSync(t, testCtx, transactions)
+
+		// Insert a wallet creation transaction with INVALID stellar hash and status
+		// The batch sync should ignore this and not fail, but a direct SyncTransaction call would error
+		walletToken := "wallet-token-invalid"
+		tenantID := uuid.NewString()
+		invalidWalletTx, err := testCtx.tssModel.Insert(ctx, txSubStore.Transaction{
+			ExternalID:      walletToken,
+			TransactionType: txSubStore.TransactionTypeWalletCreation,
+			WalletCreation: txSubStore.WalletCreation{
+				PublicKey: "0404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404040404",
+				WasmHash:  "1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+			},
+			TenantID: tenantID,
+		})
+		require.NoError(t, err)
+
+		// Update wallet transaction to SUCCESS but intentionally leave stellar_transaction_hash NULL
+		// This would fail validation for payment transactions, but should be ignored for wallet transactions
+		q := `UPDATE submitter_transactions SET status=$1 WHERE id = $2 RETURNING ` + txSubStore.TransactionColumnNames("", "")
+		err = dbConnectionPool.GetContext(ctx, invalidWalletTx, q, txSubStore.TransactionStatusSuccess, invalidWalletTx.ID)
+		require.NoError(t, err)
+
+		// Batch sync should succeed by filtering out the wallet creation transaction
+		err = monitorService.SyncBatchTransactions(ctx, len(transactions)+1, tenantID)
+		require.NoError(t, err, "Batch sync should filter out and ignore wallet creation transactions")
+
+		// Verify the invalid wallet transaction was NOT marked as synced (correctly ignored)
+		pendingWalletTx, err := testCtx.tssModel.GetTransactionPendingUpdateByID(ctx, dbConnectionPool, invalidWalletTx.ID, txSubStore.TransactionTypeWalletCreation)
+		require.NoError(t, err)
+		assert.Equal(t, invalidWalletTx.ID, pendingWalletTx.ID, "invalid wallet transaction should still be pending since payment batch sync ignores it")
+	})
+}
+
+func createTSSTxs(t *testing.T, testCtx *testContext, payments ...*data.Payment) []*txSubStore.Transaction {
+	t.Helper()
+
+	paymentsQuantity := len(payments)
+	transactionsToCreate := make([]txSubStore.Transaction, 0, paymentsQuantity)
+	for _, payment := range payments {
+		amount, err := strconv.ParseFloat(payment.Amount, 64)
+		require.NoError(t, err)
+
+		transactionsToCreate = append(transactionsToCreate, txSubStore.Transaction{
+			ExternalID:      payment.ID,
+			TransactionType: txSubStore.TransactionTypePayment,
+			Payment: txSubStore.Payment{
+				AssetCode:   payment.Asset.Code,
+				AssetIssuer: payment.Asset.Issuer,
+				Amount:      decimal.NewFromFloat(amount),
+				Destination: payment.ReceiverWallet.StellarAddress,
+			},
+			TenantID: testCtx.tenantID,
+		})
+	}
+
+	transactionsCreated, err := testCtx.tssModel.BulkInsert(testCtx.ctx, testCtx.tssModel.DBConnectionPool, transactionsToCreate)
+	require.NoError(t, err)
+	require.Len(t, transactionsCreated, paymentsQuantity)
+
+	n, err := testCtx.sdpModel.Payment.UpdateStatuses(testCtx.ctx, testCtx.sdpModel.DBConnectionPool, payments, data.PendingPaymentStatus)
+	require.NoError(t, err)
+	require.Equal(t, int64(paymentsQuantity), n)
+
+	transactions := make([]*txSubStore.Transaction, 0, paymentsQuantity)
+	for i := range transactionsCreated {
+		transactions = append(transactions, &transactionsCreated[i])
+	}
+
+	return transactions
+}
+
+func prepareTxsForSync(t *testing.T, testCtx *testContext, transactions []*txSubStore.Transaction) {
+	t.Helper()
+
+	txLen := len(transactions)
+
+	var err error
+
+	const testDistributionAccount = "GDOSPKDCGMYZTPHXPFAZSSVIHNKBPEGQXQVEWEJ4JXMKYZNXEVCFGMC2"
+
+	for _, tx := range transactions {
+		q := `UPDATE submitter_transactions SET stellar_transaction_hash = $1, status=$2, distribution_account = $3 WHERE id = $4`
+		_, err = testCtx.tssModel.DBConnectionPool.ExecContext(testCtx.ctx, q, "test-hash-"+tx.ID, txSubStore.TransactionStatusProcessing, testDistributionAccount, tx.ID)
+		require.NoError(t, err)
+
+		tx, err = testCtx.tssModel.Get(testCtx.ctx, tx.ID)
+		require.NoError(t, err)
+
+		// Update transactions states PROCESSING->SUCCESS:
+		if tx.Status == txSubStore.TransactionStatusProcessing {
+			tx, err = testCtx.tssModel.UpdateStatusToSuccess(testCtx.ctx, *tx)
+			require.NoError(t, err)
+			assert.Equal(t, txSubStore.TransactionStatusSuccess, tx.Status)
+			assert.NotEmpty(t, tx.CompletedAt)
+		}
+	}
+
+	transactionIDs := make([]string, txLen)
+	for i, tx := range transactions {
+		transactionIDs[i] = tx.ID
+	}
+
+	unsyncTransactions(t, testCtx, transactionIDs)
+
+	// Set payment status back to pending
+	for _, tx := range transactions {
+		updatePaymentStatus(t, testCtx, tx.ExternalID, data.PendingPaymentStatus)
+	}
+}
+
+func updatePaymentStatus(t *testing.T, testCtx *testContext, paymentID string, status data.PaymentStatus) {
+	t.Helper()
+
+	query := `UPDATE payments SET status = $1 WHERE id = $2`
+	result, err := testCtx.sdpModel.DBConnectionPool.ExecContext(testCtx.ctx, query, status, paymentID)
+	require.NoError(t, err)
+	rowsAffected, err := result.RowsAffected()
+	require.NoError(t, err)
+	require.Equal(t, int64(1), rowsAffected)
+}
+
+func unsyncTransactions(t *testing.T, testCtx *testContext, transactionIDs []string) {
+	t.Helper()
+
+	query := `UPDATE submitter_transactions SET synced_at = NULL WHERE id = ANY($1)`
+	_, err := testCtx.sdpModel.DBConnectionPool.ExecContext(testCtx.ctx, query, pq.Array(transactionIDs))
+	require.NoError(t, err)
+}
+
+type payloadToUpdateTSSTxToError struct {
+	transactionID  string
+	statusMessages string
+}
+
+func updateTSSTransactionsToError(t *testing.T, testCtx *testContext, txDataSlice []payloadToUpdateTSSTxToError) []txSubStore.Transaction {
+	t.Helper()
+
+	var transactionIDs []string
+	var statusMessages []sql.NullString
+	for _, txData := range txDataSlice {
+		transactionIDs = append(transactionIDs, txData.transactionID)
+		statusMessages = append(statusMessages, sql.NullString{String: txData.statusMessages, Valid: txData.statusMessages != ""})
+	}
+
+	updatedTransactions := []txSubStore.Transaction{}
+	// First update and get IDs
+	q := `
+		UPDATE submitter_transactions t
+		SET
+			status = $1,
+			status_message = u.status_message,
+			completed_at = NOW()
+		FROM (SELECT UNNEST($2::text[]) as id, UNNEST($3::text[]) as status_message) as u
+		WHERE t.id = u.id
+		RETURNING ` + txSubStore.TransactionColumnNames("t", "")
+	err := testCtx.sdpModel.DBConnectionPool.SelectContext(testCtx.ctx, &updatedTransactions, q, txSubStore.TransactionStatusError, pq.Array(transactionIDs), pq.Array(statusMessages))
+	require.NoError(t, err)
+
+	return updatedTransactions
+}
+
+func Test_PaymentFromSubmitterService_RetryingPayment(t *testing.T) {
+	dbt := dbtest.Open(t)
+	defer dbt.Close()
+	dbConnectionPool, outerErr := db.OpenDBConnectionPool(dbt.DSN)
+	require.NoError(t, outerErr)
+	defer dbConnectionPool.Close()
+
+	testCtx := setupTestContext(t, dbConnectionPool)
+	ctx := testCtx.ctx
+
+	monitorService := NewPaymentFromSubmitterService(testCtx.sdpModel, dbConnectionPool)
+
+	// create fixtures
+	wallet := data.CreateWalletFixture(t, ctx, dbConnectionPool, "Wallet", "https://www.wallet.com", "www.wallet.com", "wallet://")
+	asset := data.CreateAssetFixture(t, ctx, dbConnectionPool, "USDC", "GABC65XJDMXTGPNZRCI6V3KOKKWVK55UEKGQLONRIVYPMEJNNQ45YOEE")
+
+	receiver := data.CreateReceiverFixture(t, ctx, dbConnectionPool, &data.Receiver{})
+	receiverWallet := data.CreateReceiverWalletFixture(t, ctx, dbConnectionPool, receiver.ID, wallet.ID, data.RegisteredReceiversWalletStatus)
+
+	disbursement := data.CreateDisbursementFixture(t, ctx, dbConnectionPool, testCtx.sdpModel.Disbursements, &data.Disbursement{
+		Name:   "started disbursement",
+		Status: data.StartedDisbursementStatus,
+		Asset:  asset,
+		Wallet: wallet,
+	})
+
+	payment := data.CreatePaymentFixture(t, ctx, dbConnectionPool, testCtx.sdpModel.Payment, &data.Payment{
+		Amount:               "100",
+		StellarTransactionID: "stellar-transaction-id-1",
+		StellarOperationID:   "operation-id-1",
+		Status:               data.ReadyPaymentStatus,
+		Disbursement:         disbursement,
+		ReceiverWallet:       receiverWallet,
+		Asset:                *asset,
+	})
+
+	transactions := createTSSTxs(t, testCtx, payment)
+	require.Len(t, transactions, 1)
+
+	paymentDB, err := testCtx.sdpModel.Payment.Get(ctx, payment.ID, dbConnectionPool)
+	require.NoError(t, err)
+	assert.Equal(t, data.PendingPaymentStatus, paymentDB.Status)
+
+	transaction := transactions[0]
+	assert.Equal(t, payment.ID, transaction.ExternalID)
+	assert.Equal(t, txSubStore.TransactionStatusPending, transaction.Status)
+
+	// GIVEN a payment that fails to be sent
+	prepareTxsForSync(t, testCtx, transactions)
+	updatedTransaction := updateTSSTransactionsToError(t, testCtx, []payloadToUpdateTSSTxToError{
+		{transactionID: transaction.ID, statusMessages: "Failing Test"},
+	})
+	require.Len(t, updatedTransaction, 1)
+	transaction = &updatedTransaction[0]
+	assert.Equal(t, payment.ID, transaction.ExternalID)
+	assert.Equal(t, txSubStore.TransactionStatusError, transaction.Status)
+
+	// WHEN the monitor service is called
+	err = monitorService.SyncBatchTransactions(testCtx.ctx, 1, transaction.TenantID)
+	require.NoError(t, err)
+
+	// THEN the payment is synced to the error state
+	paymentDB, err = testCtx.sdpModel.Payment.Get(ctx, paymentDB.ID, dbConnectionPool)
+	require.NoError(t, err)
+	assert.Equal(t, data.FailedPaymentStatus, paymentDB.Status)
+	assert.Len(t, paymentDB.StatusHistory, 3)
+	assert.Equal(t, data.FailedPaymentStatus, paymentDB.StatusHistory[2].Status)
+	assert.Equal(t, "Failing Test", paymentDB.StatusHistory[2].StatusMessage)
+
+	// AND the payment is retried
+	err = testCtx.sdpModel.Payment.RetryFailedPayments(ctx, dbConnectionPool, "email@test.com", paymentDB.ID)
+	require.NoError(t, err)
+
+	paymentDB, err = testCtx.sdpModel.Payment.Get(ctx, paymentDB.ID, dbConnectionPool)
+	require.NoError(t, err)
+	assert.Equal(t, data.ReadyPaymentStatus, paymentDB.Status)
+
+	// AND a new transaction is created for the payment
+	transactions = createTSSTxs(t, testCtx, payment)
+	require.Len(t, transactions, 1)
+
+	paymentDB, err = testCtx.sdpModel.Payment.Get(ctx, payment.ID, dbConnectionPool)
+	require.NoError(t, err)
+	assert.Equal(t, data.PendingPaymentStatus, paymentDB.Status)
+
+	transactions, err = testCtx.tssModel.GetAllByExternalIDs(ctx, []string{payment.ID})
+	require.NoError(t, err)
+	require.Len(t, transactions, 2)
+
+	transaction1 := transactions[0]
+	transaction2 := transactions[1]
+	assert.Equal(t, txSubStore.TransactionStatusError, transaction1.Status)
+	assert.Equal(t, txSubStore.TransactionStatusPending, transaction2.Status)
+
+	prepareTxsForSync(t, testCtx, transactions[1:])
+	transaction2, err = testCtx.tssModel.Get(ctx, transaction2.ID)
+	require.NoError(t, err)
+	assert.Equal(t, txSubStore.TransactionStatusSuccess, transaction2.Status)
+
+	err = monitorService.SyncBatchTransactions(testCtx.ctx, 1, transaction.TenantID)
+	require.NoError(t, err)
+
+	paymentDB, err = testCtx.sdpModel.Payment.Get(ctx, paymentDB.ID, dbConnectionPool)
+	require.NoError(t, err)
+	assert.Equal(t, data.SuccessPaymentStatus, paymentDB.Status)
+	assert.Len(t, paymentDB.StatusHistory, 6)
+	assert.Equal(t, data.SuccessPaymentStatus, paymentDB.StatusHistory[5].Status)
+	assert.Empty(t, paymentDB.StatusHistory[5].StatusMessage)
+}
+
+func Test_PaymentFromSubmitterService_CompleteDisbursements(t *testing.T) {
+	dbt := dbtest.Open(t)
+	defer dbt.Close()
+	dbConnectionPool, outerErr := db.OpenDBConnectionPool(dbt.DSN)
+	require.NoError(t, outerErr)
+	defer dbConnectionPool.Close()
+
+	testCtx := setupTestContext(t, dbConnectionPool)
+	ctx := testCtx.ctx
+
+	monitorService := NewPaymentFromSubmitterService(testCtx.sdpModel, dbConnectionPool)
+
+	// create fixtures
+	wallet := data.CreateWalletFixture(t, ctx, dbConnectionPool, "Wallet", "https://www.wallet.com", "www.wallet.com", "wallet://")
+	asset := data.CreateAssetFixture(t, ctx, dbConnectionPool, "USDC", "GABC65XJDMXTGPNZRCI6V3KOKKWVK55UEKGQLONRIVYPMEJNNQ45YOEE")
+
+	receiver := data.CreateReceiverFixture(t, ctx, dbConnectionPool, &data.Receiver{})
+	receiverWallet := data.CreateReceiverWalletFixture(t, ctx, dbConnectionPool, receiver.ID, wallet.ID, data.RegisteredReceiversWalletStatus)
+
+	disbursement := data.CreateDisbursementFixture(t, ctx, dbConnectionPool, testCtx.sdpModel.Disbursements, &data.Disbursement{
+		Name:   "started disbursement",
+		Status: data.StartedDisbursementStatus,
+		Asset:  asset,
+		Wallet: wallet,
+	})
+
+	payment := data.CreatePaymentFixture(t, ctx, dbConnectionPool, testCtx.sdpModel.Payment, &data.Payment{
+		Amount:               "100",
+		StellarTransactionID: "stellar-transaction-id-2",
+		StellarOperationID:   "operation-id-2",
+		Status:               data.ReadyPaymentStatus,
+		Disbursement:         disbursement,
+		ReceiverWallet:       receiverWallet,
+		Asset:                *asset,
+	})
+
+	transactions := createTSSTxs(t, testCtx, payment)
+	require.Len(t, transactions, 1)
+
+	paymentDB, err := testCtx.sdpModel.Payment.Get(ctx, payment.ID, dbConnectionPool)
+	require.NoError(t, err)
+	assert.Equal(t, data.PendingPaymentStatus, paymentDB.Status)
+
+	transaction := transactions[0]
+	assert.Equal(t, payment.ID, transaction.ExternalID)
+	assert.Equal(t, txSubStore.TransactionStatusPending, transaction.Status)
+
+	// GIVEN a payment that fails to be sent
+	prepareTxsForSync(t, testCtx, transactions)
+	updatedTransaction := updateTSSTransactionsToError(t, testCtx, []payloadToUpdateTSSTxToError{
+		{transactionID: transaction.ID, statusMessages: "Failing Test"},
+	})
+	require.Len(t, updatedTransaction, 1)
+	transaction = &updatedTransaction[0]
+	assert.Equal(t, payment.ID, transaction.ExternalID)
+	assert.Equal(t, txSubStore.TransactionStatusError, transaction.Status)
+
+	// WHEN the monitor service is called
+	err = monitorService.SyncBatchTransactions(testCtx.ctx, 1, transaction.TenantID)
+	require.NoError(t, err)
+
+	// THEN the disbursement will not be completed
+	disbursement, err = testCtx.sdpModel.Disbursements.Get(ctx, dbConnectionPool, disbursement.ID)
+	require.NoError(t, err)
+	assert.Equal(t, data.StartedDisbursementStatus, disbursement.Status)
+
+	// AND the payment is retried
+	err = testCtx.sdpModel.Payment.RetryFailedPayments(ctx, dbConnectionPool, "email@test.com", paymentDB.ID)
+	require.NoError(t, err)
+
+	paymentDB, err = testCtx.sdpModel.Payment.Get(ctx, paymentDB.ID, dbConnectionPool)
+	require.NoError(t, err)
+	assert.Equal(t, data.ReadyPaymentStatus, paymentDB.Status)
+
+	// AND a new transaction is created for the payment
+	createTSSTxs(t, testCtx, paymentDB)
+
+	paymentDB, err = testCtx.sdpModel.Payment.Get(ctx, payment.ID, dbConnectionPool)
+	require.NoError(t, err)
+	assert.Equal(t, data.PendingPaymentStatus, paymentDB.Status)
+
+	transactions, err = testCtx.tssModel.GetAllByExternalIDs(ctx, []string{payment.ID})
+	require.NoError(t, err)
+	require.Len(t, transactions, 2)
+
+	transaction1 := transactions[0]
+	transaction2 := transactions[1]
+	assert.Equal(t, txSubStore.TransactionStatusError, transaction1.Status)
+	assert.Equal(t, txSubStore.TransactionStatusPending, transaction2.Status)
+
+	prepareTxsForSync(t, testCtx, transactions[1:])
+	transaction2, err = testCtx.tssModel.Get(ctx, transaction2.ID)
+	require.NoError(t, err)
+	assert.Equal(t, txSubStore.TransactionStatusSuccess, transaction2.Status)
+
+	// WHEN the monitor service is called again
+	err = monitorService.SyncBatchTransactions(testCtx.ctx, 1, transaction2.TenantID)
+	require.NoError(t, err)
+
+	// THEN disbursement gets completed
+	disbursement, err = testCtx.sdpModel.Disbursements.Get(ctx, dbConnectionPool, disbursement.ID)
+	require.NoError(t, err)
+	assert.Equal(t, data.CompletedDisbursementStatus, disbursement.Status)
+}

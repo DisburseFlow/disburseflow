@@ -1,0 +1,98 @@
+{{- if .Values.tss.enabled -}}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "sdp.fullname" . }}-tss
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sdp.labelsWithSuffix" (list . "-tss") | nindent 4 }}
+  {{- if .Values.tss.deployment.annotations }}
+  annotations:
+    {{- tpl (toYaml .Values.tss.deployment.annotations) . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if not .Values.global.autoscaling.enabled }}
+  replicas: {{ .Values.global.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "sdp.selectorLabelsWithSuffix" (list . "-tss") | nindent 6 }}
+
+  {{- if .Values.tss.deployment.strategy }}
+  strategy:
+    {{- toYaml .Values.tss.deployment.strategy | nindent 4 }}
+  {{- end }}
+  
+  template:
+    metadata:
+      {{- if .Values.tss.deployment.podAnnotations }}
+      annotations:
+        {{- tpl (toYaml .Values.tss.deployment.podAnnotations) . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "sdp.selectorLabelsWithSuffix" (list . "-tss") | nindent 8 }}
+    spec:
+      {{- if .Values.global.serviceAccount.name }}
+      serviceAccountName: {{ tpl .Values.global.serviceAccount.name $ }}
+      {{- end }}
+      {{- if or .Values.tss.deployment.priorityClassName .Values.global.deployment.priorityClassName }}
+      priorityClassName: {{ .Values.tss.deployment.priorityClassName | default .Values.global.deployment.priorityClassName | quote }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.tss.deployment.podSecurityContext | nindent 8 }}
+      
+      {{- with default .Values.global.deployment.topologySpreadConstraints .Values.tss.deployment.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      
+      containers:
+      # ============================= Stellar Disbursement Platform: =============================
+        - name: {{ .Chart.Name }}-tss
+          securityContext:
+            {{- toYaml .Values.tss.deployment.securityContext | nindent 12 }}
+          image: "{{ .Values.sdp.image.repository }}:{{ .Values.sdp.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.sdp.image.pullPolicy }}
+          {{- if .Values.global.ephemeralDatabase }}
+          env:
+            - name: DATABASE_URL
+              value: 'postgres://postgres:postgres@{{ include "sdp.fullname" . }}-psql.{{ .Release.Namespace }}.svc.cluster.local:5432/postgres-sdp?sslmode=disable'
+          {{- end }}
+          args:
+            - "tss"
+          ports:
+            - name: http
+              containerPort: {{ include "tss.port" . }}
+              protocol: TCP
+            - name: metrics
+              containerPort: {{ include "tss.metricsPort" . }}
+              protocol: TCP
+
+          {{- if or .Values.tss.deployment.resources .Values.global.resources }}
+          resources:
+            {{- toYaml (.Values.tss.deployment.resources | default .Values.global.resources) | nindent 12 }}
+          {{- end }}
+
+          envFrom:
+          - configMapRef:
+              name: {{ include "sdp.fullname" . }}-tss
+          
+          {{- if .Values.tss.kubeSecrets.secretName }}
+          - secretRef:
+              name: {{ .Values.tss.kubeSecrets.secretName }}
+          {{ end }}
+
+      {{- with .Values.tss.deployment.nodeSelector | default .Values.global.deployment.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tss.deployment.affinity | default .Values.global.deployment.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tss.deployment.tolerations | default .Values.global.deployment.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

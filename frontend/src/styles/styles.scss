@@ -1,0 +1,1023 @@
+@use "./styles-utils.scss" as *;
+
+body {
+  font-family: var(--sds-ff-base);
+  font-size: pxToRem(14px);
+  overflow-y: hidden;
+}
+
+// Container
+.Container {
+  // Sidebar
+  &__sidebar {
+    width: pxToRem(242px);
+    flex-shrink: 0;
+    flex-grow: 0;
+  }
+
+  // Content
+  &__content {
+    &__inset {
+      padding: pxToRem(32px);
+    }
+  }
+}
+
+// Layout for Sign in, Forgot password, and alike
+.CardLayout {
+  width: pxToRem(408px);
+  margin: 0 auto auto;
+  display: flex;
+  flex-direction: column;
+  gap: pxToRem(12px);
+
+  .Heading {
+    color: var(--sds-clr-gray-12);
+  }
+
+  &__heading {
+    .Heading {
+      margin-bottom: pxToRem(8px) !important;
+    }
+  }
+
+  .Note {
+    margin-top: 0;
+    color: var(--sds-clr-gray-11);
+
+    ul {
+      font-size: inherit;
+      line-height: inherit;
+      color: currentColor;
+      list-style-type: disc;
+      margin-left: pxToRem(8px);
+    }
+
+    .CodeSnippet {
+      font-family: var(--sds-ff-monospace);
+    }
+  }
+
+  form {
+    background-color: var(--sds-clr-gray-01);
+    border: 1px solid var(--sds-clr-gray-04);
+    border-radius: pxToRem(8px);
+    padding: pxToRem(32px);
+    display: flex;
+    flex-direction: column;
+    gap: pxToRem(24px);
+
+    .Link {
+      align-self: center;
+      margin-top: pxToRem(-8px);
+    }
+  }
+}
+
+// Generic
+.Note {
+  font-size: pxToRem(14px);
+  line-height: pxToRem(22px);
+  color: var(--sds-clr-gray-09);
+  margin-top: pxToRem(8px);
+
+  &--error {
+    color: var(--sds-clr-red-09);
+  }
+
+  &--success {
+    color: var(--sds-clr-green-09);
+  }
+
+  &--small {
+    font-size: pxToRem(12px);
+    line-height: pxToRem(20px);
+  }
+
+  &--noMargin {
+    margin-top: 0;
+  }
+
+  &__emphasis {
+    display: block;
+    font-size: pxToRem(12px);
+    line-height: pxToRem(18px);
+    font-weight: 500;
+    color: var(--sds-clr-gray-10);
+    letter-spacing: 0.01em;
+  }
+}
+
+.Note__emphasis {
+  display: block;
+  font-size: pxToRem(12px);
+  line-height: pxToRem(18px);
+  font-weight: 500;
+  color: var(--sds-clr-gray-10);
+  letter-spacing: 0.01em;
+}
+
+.Table-v2__cell--secondary {
+  color: var(--sds-clr-gray-09);
+}
+
+.Table__emptyState {
+  background-color: var(--sds-clr-gray-02);
+  border-bottom-left-radius: pxToRem(8px);
+  border-bottom-right-radius: pxToRem(8px);
+  color: var(--sds-clr-gray-10) !important;
+}
+
+.FiltersWithSearch {
+  &__search {
+    width: pxToRem(336px);
+  }
+
+  &__pageLimit {
+    width: pxToRem(160px);
+
+    .Select select {
+      height: pxToRem(30px);
+    }
+  }
+}
+
+.Notification__message {
+  .ErrorExtras {
+    margin-top: pxToRem(8px);
+  }
+}
+
+// Stat card
+.StatCards {
+  display: grid;
+  gap: pxToRem(12px);
+  margin-bottom: pxToRem(32px);
+
+  &--home {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  &--disbursementDetails {
+    grid-template-columns: 2fr 3fr;
+  }
+
+  &--paymentDetails {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+
+  &__card {
+    --StatCard-grid-columns: 2;
+
+    &--grid {
+      display: grid;
+      grid-template-columns: repeat(var(--StatCard-grid-columns), 1fr);
+      gap: pxToRem(24px);
+    }
+
+    &--wideGap {
+      gap: pxToRem(60px);
+    }
+
+    &--split {
+      display: flex;
+      flex-direction: column;
+      gap: pxToRem(24px);
+      justify-content: space-between;
+      height: 100%;
+
+      & > div:first-child {
+        flex: 1;
+      }
+    }
+
+    &--flexCols {
+      display: flex;
+      justify-content: space-between;
+      gap: pxToRem(16px);
+
+      & > * {
+        flex: 1;
+        flex-shrink: 0;
+      }
+
+      & > div:nth-child(2) {
+        text-align: right;
+      }
+    }
+
+    &__title {
+      font-size: pxToRem(14px);
+      line-height: pxToRem(22px);
+      font-weight: var(--sds-fw-medium);
+    }
+
+    &__unit {
+      font-size: pxToRem(18px);
+      line-height: pxToRem(26px);
+      font-weight: var(--sds-fw-regular);
+      margin-top: pxToRem(8px);
+    }
+
+    & {
+      --StatCard-template-rows: 3; // Wrap the custom property in `& {}`
+    }
+
+    &__column {
+      display: grid;
+      grid-template-rows: repeat(var(--StatCard-template-rows), 1fr);
+      // Adjusting for even padding all around
+      margin-top: pxToRem(-8px);
+      margin-bottom: pxToRem(-8px);
+    }
+
+    &__item {
+      font-size: pxToRem(14px);
+      line-height: pxToRem(22px);
+
+      &--fullWidth {
+        grid-column: 1 / -1;
+      }
+
+      &--inline {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: pxToRem(24px);
+        padding-top: pxToRem(8px);
+        padding-bottom: pxToRem(8px);
+
+        &__label {
+          margin-bottom: 0;
+        }
+
+        &:not(:last-child) {
+          border-bottom: 1px solid var(--sds-clr-gray-04);
+        }
+      }
+
+      &__label {
+        font-weight: var(--sds-fw-medium);
+        color: var(--sds-clr-gray-09);
+        display: block;
+        margin-bottom: pxToRem(4px);
+      }
+
+      &__value {
+        font-weight: var(--sds-fw-regular);
+        color: var(--sds-clr-gray-12);
+      }
+    }
+
+    &__assets {
+      margin-top: pxToRem(8px);
+      font-size: pxToRem(14px);
+      line-height: pxToRem(22px);
+      color: var(--sds-clr-gray-12);
+
+      .StatCards__card--flexCols {
+        &:not(:last-child) {
+          margin-bottom: pxToRem(8px);
+        }
+      }
+
+      .AssetAmount__code {
+        color: var(--sds-clr-gray-09);
+      }
+
+      .AssetAmount__icon {
+        order: -1;
+        width: pxToRem(16px);
+        height: pxToRem(16px);
+      }
+    }
+
+    &__walletCounts {
+      border-top: 1px solid var(--sds-clr-gray-04);
+      padding-bottom: pxToRem(2px);
+      padding-top: pxToRem(2px);
+
+      .StatCards__card__item__label {
+        margin-bottom: 0;
+      }
+
+      .StatCards__card__item--inline {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+    }
+  }
+
+  .InfoTooltip {
+    text-align: left;
+  }
+}
+
+// Search inputs
+.Search__filter {
+  width: pxToRem(336px);
+}
+
+.HomeStatistics {
+  .Notification {
+    margin-bottom: pxToRem(32px);
+  }
+}
+
+// Disbursements
+.DisbursementForm {
+  display: flex;
+  flex-direction: column;
+  gap: pxToRem(12px);
+  margin-top: pxToRem(24px);
+
+  .Notification {
+    margin-bottom: pxToRem(8px);
+  }
+
+  .UploadCsv,
+  .CsvPreview {
+    margin-top: pxToRem(16px);
+  }
+
+  &__balances {
+    margin-top: pxToRem(16px);
+    display: flex;
+    flex-direction: column;
+    gap: pxToRem(8px);
+    font-size: pxToRem(14px);
+    line-height: pxToRem(22px);
+    color: var(--sds-clr-gray-11);
+  }
+}
+
+// Disbursement drafts
+.DisbursementDrafts {
+  margin-top: pxToRem(24px);
+
+  &__icon {
+    display: inline-block;
+    width: pxToRem(14px);
+    height: pxToRem(14px);
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      stroke: var(--sds-clr-gray-09);
+    }
+  }
+}
+
+.SectionBlock {
+  margin-bottom: pxToRem(24px);
+}
+
+.DetailsSection {
+  &:not(:first-child) {
+    margin-top: pxToRem(32px);
+  }
+
+  & > h2 {
+    margin-bottom: pxToRem(24px) !important;
+  }
+
+  h4 {
+    color: var(--sds-clr-gray-10);
+    font-size: pxToRem(14px);
+    line-height: pxToRem(22px);
+    font-weight: var(--sds-fw-medium);
+    margin-bottom: pxToRem(-12px) !important;
+  }
+}
+
+// Payments
+.PaymentIDs {
+  &__item {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+// Payment details
+.PaymentDetails {
+  &__wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: pxToRem(24px);
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: pxToRem(4px);
+    font-size: pxToRem(14px);
+    line-height: pxToRem(22px);
+    color: var(--sds-clr-gray-12);
+  }
+}
+
+// Receiver details
+.ReceiverDetails__wallets {
+  & > div:not(:last-child) {
+    margin-bottom: pxToRem(12px);
+  }
+
+  &__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &__dropdown {
+    display: flex;
+    align-items: center;
+    gap: pxToRem(16px);
+
+    .Select {
+      width: auto;
+    }
+
+    .Select__container select {
+      padding-right: pxToRem(32px);
+    }
+
+    .Select__icon {
+      right: pxToRem(8px);
+    }
+  }
+
+  &__subtitle {
+    font-size: pxToRem(14px);
+    line-height: pxToRem(22px);
+    color: var(--sds-clr-gray-10);
+    flex-shrink: 0;
+  }
+}
+
+.ReceiverContactInfo {
+  &__item {
+    display: block;
+    width: 100%;
+  }
+}
+
+// Wallets
+.WalletHistory__amount {
+  display: inline-flex;
+}
+
+.WalletBalances {
+  display: flex;
+  flex-direction: column;
+  gap: pxToRem(8px);
+
+  .Title {
+    color: var(--sds-clr-gray-10);
+  }
+
+  .AssetAmount {
+    font-size: pxToRem(14px);
+    line-height: pxToRem(22px);
+    font-weight: var(--sds-fw-medium);
+    color: var(--sds-clr-gray-11);
+
+    &__icon {
+      order: -1;
+      width: pxToRem(16px);
+      height: pxToRem(16px);
+      border-radius: pxToRem(16px);
+      margin-right: pxToRem(4px);
+    }
+  }
+}
+
+// Card styles
+.CardStack {
+  display: flex;
+  flex-direction: column;
+  gap: pxToRem(12px);
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    gap: pxToRem(16px);
+  }
+
+  &__title {
+    font-size: pxToRem(16px);
+    line-height: pxToRem(24px);
+    font-weight: var(--sds-fw-medium);
+    color: var(--sds-clr-gray-12);
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: pxToRem(16px);
+  }
+
+  &__body {
+    .Note {
+      margin-top: 0;
+    }
+  }
+
+  &__grid {
+    display: grid;
+    gap: pxToRem(24px);
+    grid-template-columns: 1fr 1fr;
+  }
+
+  &__buttons {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: pxToRem(8px);
+
+    &--spaceBetween {
+      justify-content: space-between;
+    }
+  }
+
+  &__dropdownMenu {
+    width: pxToRem(18px);
+    height: pxToRem(24px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+      stroke: var(--sds-clr-gray-12);
+    }
+  }
+
+  &__infoItem {
+    .Label {
+      margin-bottom: pxToRem(4px);
+      display: block;
+    }
+
+    &__value {
+      font-size: pxToRem(14px);
+      line-height: pxToRem(22px);
+      font-weight: var(--sds-fw-regular);
+      color: var(--sds-clr-gray-12);
+    }
+  }
+
+  &__imageUpload {
+    grid-column: 1/-1;
+
+    .FileUpload {
+      margin-top: pxToRem(8px);
+      display: flex;
+      gap: pxToRem(12px);
+
+      align-items: center;
+      justify-content: space-between;
+      transition: background-color var(--sds-anim-transition-default);
+    }
+
+    .FileUpload__info {
+      display: flex;
+      align-items: center;
+      gap: pxToRem(12px);
+      font-size: pxToRem(12px);
+      line-height: pxToRem(20px);
+      font-weight: var(--sds-fw-regular);
+      color: var(--sds-clr-gray-09);
+      order: -1;
+      max-width: 60%;
+    }
+
+    .FileUpload__message {
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+  }
+}
+
+// Users
+.UsersTable {
+  margin-left: pxToRem(-24px);
+  margin-right: pxToRem(-24px);
+  margin-bottom: pxToRem(-24px);
+
+  .FlexCellRight {
+    display: flex;
+    justify-content: flex-end;
+  }
+}
+
+.NewUserForm {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: pxToRem(12px);
+
+  .RoleDescription {
+    grid-column: 1 / -1;
+    font-size: pxToRem(12px);
+    line-height: pxToRem(20px);
+    font-weight: var(--sds-fw-medium);
+    color: var(--sds-clr-gray-10);
+    display: flex;
+    align-items: flex-start;
+    gap: pxToRem(8px);
+
+    svg {
+      display: block;
+      stroke: currentColor;
+      height: pxToRem(14px);
+      width: pxToRem(14px);
+      flex-grow: 0;
+      flex-shrink: 0;
+      margin-top: pxToRem(3px);
+    }
+  }
+}
+
+// Settings
+.SdpSettings {
+  display: flex;
+  flex-direction: column;
+  gap: pxToRem(16px);
+
+  &__row {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: pxToRem(16px);
+  }
+
+  &__label {
+    font-size: pxToRem(14px);
+  }
+
+  &__form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: pxToRem(16px);
+
+    .Floater {
+      height: pxToRem(36px);
+      width: pxToRem(24px);
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    &__row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+
+    &__buttons {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: pxToRem(16px);
+    }
+  }
+}
+
+// Circle Distribution Account
+.CircleDistributionAccountPending {
+  .Banner__content {
+    max-width: 100ch;
+  }
+
+  .Banner .Link {
+    --Link-color-default: var(--sds-clr-amber-11);
+    --Link-color-hover: var(--sds-clr-amber-12);
+    --Link-color-disabled: var(--sds-clr-amber-08);
+    font-weight: var(--sds-fw-semi-bold);
+  }
+}
+
+.CircleBalances {
+  padding: pxToRem(16px);
+
+  &__title {
+    color: var(--sds-clr-gray-10);
+    font-size: pxToRem(12px);
+    line-height: pxToRem(18px);
+    font-weight: var(--sds-fw-medium);
+  }
+}
+
+// Not found / 404 page
+.NotFoundPage {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  padding-top: 5%;
+
+  h1 {
+    margin-bottom: pxToRem(8px) !important;
+  }
+
+  p {
+    color: var(--sds-clr-gray-10);
+    font-size: pxToRem(14px);
+    line-height: pxToRem(22px);
+    margin-bottom: pxToRem(32px) !important;
+  }
+}
+
+.Banner {
+  &__content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: pxToRem(8px);
+  }
+
+  &__message {
+    color: var(--sds-clr-gray-12);
+  }
+
+  .Link {
+    --Link-color-default: var(--sds-clr-red-11);
+    --Link-color-hover: var(--sds-clr-red-12);
+    --Link-color-disabled: var(--sds-clr-red-08);
+  }
+}
+
+// Wallet Providers
+.WalletProvidersNew {
+  &__Tab {
+    padding: pxToRem(4px) pxToRem(8px);
+    border-radius: pxToRem(4px);
+    font-size: pxToRem(12px);
+    line-height: pxToRem(18px);
+    font-weight: var(--sds-fw-semi-bold);
+    cursor: pointer;
+    transition:
+      color var(--sds-anim-transition-default),
+      background-color var(--sds-anim-transition-default);
+
+    &[data-selected="false"] {
+      color: var(--sds-clr-gray-11);
+      background-color: var(--sds-clr-gray-01);
+    }
+
+    &[data-selected="true"] {
+      color: var(--sds-clr-lilac-11);
+      background-color: var(--sds-clr-lilac-04);
+      cursor: default;
+    }
+
+    @media (hover: hover) {
+      &:hover {
+        color: var(--sds-clr-lilac-11);
+        background-color: var(--sds-clr-lilac-04);
+      }
+    }
+  }
+
+  &__WalletPresetsContainer {
+    display: grid;
+    gap: pxToRem(8px);
+    grid-template-rows: pxToRem(50px);
+    grid-template-columns: repeat(auto-fit, minmax(pxToRem(170px), 1fr));
+  }
+
+  &__WalletPreset {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: pxToRem(4px);
+    padding: pxToRem(14px);
+    border-radius: pxToRem(8px);
+    border: 1px solid var(--sds-clr-gray-06);
+    background-color: var(--sds-clr-gray-01);
+    cursor: pointer;
+    transition: border-color var(--sds-anim-transition-default);
+    text-align: center;
+
+    &[data-selected="true"] {
+      border-color: var(--sds-clr-lilac-09);
+      cursor: default;
+    }
+
+    &__logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: pxToRem(24px);
+      height: pxToRem(24px);
+      border-radius: 50%;
+      border: 1px solid var(--sds-clr-gray-06);
+      overflow: hidden;
+
+      &::before {
+        display: block;
+        content: attr(data-letter);
+        font-size: pxToRem(12px);
+        font-weight: var(--sds-fw-semi-bold);
+        color: var(--sds-clr-gray-11);
+      }
+    }
+
+    @media (hover: hover) {
+      &:hover {
+        border-color: var(--sds-clr-lilac-09);
+      }
+    }
+  }
+
+  .Label {
+    color: var(--sds-clr-gray-12);
+  }
+
+  // Assets
+  &__assetSelector {
+    position: relative;
+    z-index: 1;
+
+    &__dropdown {
+      position: absolute;
+      top: pxToRem(62px);
+      left: 0;
+      right: 0;
+      background-color: var(--sds-clr-gray-01);
+      border: 1px solid var(--sds-clr-gray-06);
+      border-radius: pxToRem(6px);
+      overflow: hidden;
+    }
+
+    &__item {
+      display: flex;
+      align-items: center;
+      gap: pxToRem(8px);
+      padding: pxToRem(16px);
+      cursor: pointer;
+
+      &:not(:last-child) {
+        border-bottom: 1px solid var(--sds-clr-gray-06);
+      }
+    }
+  }
+
+  &__assetImage {
+    --WalletProvidersNew-assetImage-size: #{pxToRem(14px)};
+
+    display: flex;
+    width: var(--WalletProvidersNew-assetImage-size);
+    height: var(--WalletProvidersNew-assetImage-size);
+    border: 1px solid var(--sds-clr-gray-06);
+    border-radius: 50%;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--sds-clr-gray-01);
+    overflow: hidden;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    // Selected asset image
+    &[data-size="sm"] {
+      --WalletProvidersNew-assetImage-size: #{pxToRem(14px)};
+    }
+
+    // Dropdown asset image
+    &[data-size="md"] {
+      --WalletProvidersNew-assetImage-size: #{pxToRem(20px)};
+    }
+  }
+
+  &__selectedAssets {
+    margin-top: pxToRem(6px);
+
+    &__image {
+      display: inline-flex;
+      width: pxToRem(14px);
+      height: pxToRem(14px);
+      border: 1px solid var(--sds-clr-gray-06);
+      border-radius: 50%;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--sds-clr-gray-01);
+      overflow: hidden;
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
+    }
+  }
+
+  &__responseItem {
+    &__value {
+      color: var(--sds-clr-gray-12);
+    }
+  }
+}
+
+// SDS overrides
+.sds-theme-light,
+.sds-theme-dark {
+  background-color: var(--sds-clr-gray-02) !important;
+}
+
+#root {
+  --sds-window-width-min: 1200px;
+  --sds-window-height-min: auto;
+
+  --sds-gap-xs: #{pxToRem(4px)};
+  --sds-gap-sm: #{pxToRem(8px)};
+  --sds-gap-md: #{pxToRem(12px)};
+  --sds-gap-lg: #{pxToRem(16px)};
+  --sds-gap-xl: #{pxToRem(24px)};
+  --sds-gap-xxl: #{pxToRem(32px)};
+
+  .Heading {
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  // TODO: fix in SDS
+  .Card {
+    width: auto;
+    height: auto;
+  }
+
+  // TODO: fix in SDS
+  .Tooltip {
+    ul {
+      font-size: inherit;
+      line-height: inherit;
+      color: currentColor;
+      list-style-type: disc;
+      margin-left: pxToRem(8px);
+    }
+  }
+
+  // TODO: fix in SDS
+  .Notification__message {
+    ul {
+      font-size: pxToRem(14px);
+      line-height: pxToRem(22px);
+      color: var(--sds-clr-gray-10);
+      list-style-type: disc;
+    }
+  }
+
+  // TODO: add to SDS {
+  .Input__side-element {
+    .PasswordMaskButton {
+      width: pxToRem(22px);
+      height: pxToRem(22px);
+      background: none;
+      border: none;
+      cursor: pointer;
+
+      svg {
+        display: block;
+        stroke: var(--sds-clr-gray-09);
+      }
+    }
+  }
+
+  // TODO: add toggle loader to SDS
+  .Toggle__wrapper {
+    display: flex;
+    align-items: center;
+    gap: pxToRem(4px);
+
+    .Loader {
+      --Loader-color: var(--sds-clr-gray-08);
+    }
+  }
+
+  // Floater
+  .Floater__content {
+    background-color: var(--sds-clr-gray-01);
+    border-color: var(--sds-clr-gray-04);
+  }
+
+  // TODO: fix in SDS
+  // Fix input focus border cut off
+  .Modal__content .ModalBody {
+    padding-left: pxToRem(4px);
+    margin-right: pxToRem(-4px);
+  }
+}

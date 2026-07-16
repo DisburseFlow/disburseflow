@@ -1,0 +1,54 @@
+{{- if .Values.sdp.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "sdp.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sdp.labels" . | nindent 4 }}
+  annotations:
+    {{- toYaml .Values.sdp.ingress.annotations | nindent 4 }}
+spec:
+  {{- if .Values.sdp.ingress.className }}
+  ingressClassName: {{ .Values.sdp.ingress.className }}
+  {{- end }}
+  {{- if .Values.sdp.ingress.tls }}
+  tls:
+    {{- tpl (toYaml .Values.sdp.ingress.tls) . | nindent 4 }}
+  {{- end }}
+  rules:
+    - host: {{ include "sdp.domain" . | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "sdp.fullname" . }}
+                port:
+                  number: {{ include "sdp.port" . }}
+{{- if .Values.sdp.route.mtnDomain }}
+    - host: {{ include "sdp.mtnDomain" . | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "sdp.fullname" . }}
+                port:
+                  number: {{ include "sdp.port" . }}
+{{- end }}
+{{- if .Values.sdp.route.adminDomain }}
+    - host: {{ include "sdp.adminDomain" . | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "sdp.fullname" . }}
+                port:
+                  number: {{ include "sdp.adminPort" . }}
+{{- end }}
+{{- end }}

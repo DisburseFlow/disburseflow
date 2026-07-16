@@ -1,0 +1,657 @@
+# EXAMPLE values for the Stellar Disbursement Platform (SDP) Backend.
+# Repo: https://github.com/stellar/stellar-disbursement-platform-backend
+#
+# This is a YAML-formatted file where you declare the variables to be passed into your templates.
+
+# =========================== START global ===========================
+## @section Global parameters
+## @descriptionStart
+##  These parameters are shared by all charts.
+## @descriptionEnd
+global:
+  ## @param global.isPubnet Determines if the network is public. Set this to true for public networks.
+  isPubnet: false
+  ## @extra global.rpc RPC configuration for SDP/TSS/dashboard.
+  rpc:
+    ## @param global.rpc.url The URL of the Stellar RPC server for embedded wallets and SEP-45 features. When set, templates use this value and enable RPC in the dashboard.
+    url: ""
+    ## @param global.rpc.requestAuthHeaderKey The name of the HTTP header to include when authenticating requests to a protected RPC server.
+    requestAuthHeaderKey: ""
+    ## @param global.rpc.requestAuthHeaderValue The value of the HTTP header used for authenticating requests to a protected RPC server.
+    requestAuthHeaderValue: ""
+
+  ## @param global.replicaCount Number of replicas for the application.
+  replicaCount: 1
+
+  ## @param global.resources Resource limits and requests for the application pods.
+  ## By default, we recommend not specifying default resources to ensure the chart can run on environments with minimal resources, such as Minikube.
+  ## If you wish to specify resources, uncomment the resource fields and adjust them as necessary.
+  resources: {}
+  # limits:
+  #   cpu: 250m
+  #   memory: 512Mi
+  # requests:
+  #   cpu: 50m
+  #   memory: 256Mi
+
+  ## @param global.service.type Kubernetes Service type for the application.
+  service:
+    type: ClusterIP
+
+  ## @extra global.autoscaling Configuration related to the horizontal pod autoscaling of the application.
+  ## @param global.autoscaling.enabled Determines if autoscaling is enabled for the application.
+  ## @param global.autoscaling.minReplicas Minimum number of replicas when autoscaling is enabled.
+  ## @param global.autoscaling.maxReplicas Maximum number of replicas when autoscaling is enabled.
+  ## @param global.autoscaling.targetCPUUtilizationPercentage Target CPU utilization percentage for autoscaling.
+  ## @param global.autoscaling.targetMemoryUtilizationPercentage Target memory utilization percentage for autoscaling.
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 4
+    targetCPUUtilizationPercentage: 80
+    targetMemoryUtilizationPercentage: 80
+
+  ## @extra global.serviceAccount Configuration related to the Kubernetes Service Account used by the application.
+  ## @param global.serviceAccount.create Determines if a new service account should be created.
+  ## @param global.serviceAccount.annotations Annotations to be added to the service account.
+  ## @param global.serviceAccount.name Name of the service account to be used. If not set and create is set to true, a name will be generated using the fullname template.
+  serviceAccount:
+    create: false
+    annotations:
+    name: ""
+
+  ## @extra global.deployment Configuration related to the deployment of the application.
+  ## @param global.deployment.nodeSelector Node selector to determine which nodes should run the pods.
+  ## @param global.deployment.tolerations Tolerations to ensure pods aren't scheduled on unsuitable nodes.
+  ## @param global.deployment.affinity Affinity rules to determine where pods get scheduled based on node conditions.
+  ## @param global.deployment.priorityClassName Name of the priority class to be used by the deployment.
+  ## @param global.deployment.topologySpreadConstraints Pod topology spread constraints for all services.
+  deployment:
+    nodeSelector: { }
+    tolerations: [ ]
+    affinity: { }
+    priorityClassName: ""
+    topologySpreadConstraints: []
+
+  ## @param global.ephemeralDatabase Enables or disables the creation of an ephemeral database for testing purposes.
+  ## If this option is enabled, make sure to set the `DATABASE_URL` environment variable to:
+  ##   - postgres://postgres:postgres@{{ include "sdp.fullname" . }}-psql:5432/postgres-sdp?sslmode=disable
+  ## The AP database URL will be set automatically to:
+  ##   - postgres://postgres:postgres@{{ include "sdp.fullname" . }}-psql:5433/postgres-ap?sslmode=disable
+  ephemeralDatabase: true
+
+  ## @param global.autoGenerateSecrets Determines if secrets should be auto-generated.
+  autoGenerateSecrets: false
+
+  ## @param global.singleTenantMode Determines if the SDP service is running in single-tenant mode.
+  singleTenantMode: false
+
+  ## @param global.distributionPublicKey The public key of the HOST's Stellar distribution account, used to create channel accounts.
+  ## @param global.distributionPrivateKey The private key of the root Stellar distribution account
+  distributionPublicKey: #required
+  distributionPrivateKey: #required
+
+  ## @param global.sep10PublicKey SEP10 signing public key.
+  ## @param global.sep10PrivateKey The public key of the Stellar account that signs the SEP-10 transactions. It's also used to sign URLs.
+  sep10PublicKey: #required
+  sep10PrivateKey: #required
+
+  ## @param global.recaptchaSiteKey Site key for ReCaptcha V2 to verify user's non-robotic behavior. Default value is for testing.
+  ## @param global.recaptchaSiteSecretKey Secret key for ReCaptcha V2 to verify user's non-robotic behavior. Default value is for testing.
+  recaptchaSiteKey: 6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI
+  recaptchaSiteSecretKey: 6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe
+
+  ## @param global.bridgeIntegration.enabled Determines if the bridge integration is enabled. If set to true, the bridge integration will be enabled.
+  ## @param global.bridgeIntegration.baseUrl The base URL of the bridge api.
+  ## @param global.bridgeIntegration.apiKey The API key for the bridge integration.
+  bridgeIntegration:
+      enabled: false
+      baseUrl: "https://api.bridge.xyz"
+      apiKey: #required if bridgeIntegration.enabled is true
+
+
+# =========================== START sdp ===========================
+## @section Stellar Disbursement Platform (SDP) parameters
+## @descriptionStart
+## Configuration parameters for the SDP Core Service which is the core backend service that performs several functions:
+## - Dashboard API: the API used by the front-end UI for all disbursement requests.
+## - Messaging Service: a recurring process that sends text messages to users prompting them to download the wallet selected for a particular disbursement and verify their phone with an OTP
+## - Wallet Registration UI: a web application that collects and verifies the recipient's OTP code and verification information via Stellar's SEP-24: Hosted Deposit and Withdrawal protocol
+## @descriptionEnd
+sdp:
+  ## @extra sdp.route Configuration related to the routing of the SDP service.
+  ## @param sdp.route.schema Protocol scheme used for the service. Can be "http" or "https".
+  ## @param sdp.route.domain Public domain/address of the SDP service. If using localhost, consider including the port as part of the domain.
+  ## @param sdp.route.mtnDomain Public domain/address of the multi-tenant SDP service. This is a wild-card domain used for multi-tenant setups e.g. "*.sdp.localhost.com".
+  ## @param sdp.route.adminDomain Public domain/address of the SDP admin service. Disabled by default. When provided, the admin service will be available at this domain.
+  ## @param sdp.route.port Primary port on which the SDP service listens.
+  ## @param sdp.route.metricsPort Port dedicated to metrics collection for the SDP service.
+  ## @param sdp.route.adminPort Port dedicated to serve the SDP admin endpoints, used to manage new or existing tenants.
+  route:
+    schema: "https"
+    domain: #required
+    mtnDomain: #required
+    adminDomain: #optional
+    port: "8000"
+    metricsPort: "8002"
+    adminPort: "8003"
+
+  ## @extra sdp.image Configuration related to the Docker image used by the SDP service.
+  ## @param sdp.image.repository Docker image repository for the SDP backend service.
+  ## @param sdp.image.pullPolicy Image pull policy for the SDP service. For locally built images, consider using "Never" or "IfNotPresent".
+  ## @param sdp.image.tag Docker image tag for the SDP service. If set, this overrides the default value from `.Chart.AppVersion`.
+  image:
+    repository: stellar/stellar-disbursement-platform-backend
+    pullPolicy: Always
+    tag: "6.6.1"
+
+  ## @extra sdp.deployment Configuration related to the deployment of the SDP service.
+  ## @param sdp.deployment.annotations Annotations to be added to the deployment.
+  ## @param sdp.deployment.podAnnotations Annotations specific to the pods.
+  ## @param sdp.deployment.podSecurityContext Security settings for the pods.
+  ## @param sdp.deployment.securityContext Security settings for the container within the pod.
+  ## @param sdp.deployment.strategy Configuration related to the deployment strategy, ensuring smooth updates and minimal downtime.
+  ## @param sdp.deployment.resources Resource limits and requests for the SDP service pods. If not specified, falls back to global.resources.
+  ## @param sdp.deployment.nodeSelector Node selector to determine which nodes should run the pods.
+  ## @param sdp.deployment.tolerations Tolerations to ensure pods aren't scheduled on unsuitable nodes.
+  ## @param sdp.deployment.affinity Affinity rules to determine where pods get scheduled based on node conditions.
+  ## @param sdp.deployment.priorityClassName Name of the priority class to be used by the SDP deployment. If not specified, no priority class will be used.
+  ## @param sdp.deployment.topologySpreadConstraints Pod topology spread constraints for the SDP service, overrides global setting if defined.
+  deployment:
+    annotations:
+    podAnnotations: {}
+    podSecurityContext: {}
+    securityContext: {}
+    strategy: {}
+    resources: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    priorityClassName: ""
+    topologySpreadConstraints: []
+
+  ## @extra sdp.configMap Configuration for the ConfigMap used by the SDP service.
+  ## @param sdp.configMap.annotations Annotations to be added to the ConfigMap.
+  ## @extra sdp.configMap.data Used to inject non-sensitive environment variables into the SDP deployment; for the latest variables, consult the application's CLI `-h` command.
+  ## @extra sdp.configMap.data.DISTRIBUTION_PUBLIC_KEY The public key of the HOST's Stellar distribution account, used to create channel accounts. Required if global.distributionPublicKey not set.
+  ## @extra sdp.configMap.data.SEP10_SIGNING_PUBLIC_KEY SEP10 signing public key. Required if global.sep10PublicKey not set.
+  ## @extra sdp.configMap.data.RECAPTCHA_SITE_KEY Site key for ReCaptcha. Required if using ReCaptcha.
+  ## @param sdp.configMap.data.INSTANCE_NAME The name of the SDP instance. Example: "SDP Testnet".
+  ## @param sdp.configMap.data.CRASH_TRACKER_TYPE Determines the type of crash tracker in use. Options: "DRY_RUN", "SENTRY".
+  ## @param sdp.configMap.data.ENVIRONMENT Specifies the environment SDP is running in (e.g. "localhost").
+  ## @param sdp.configMap.data.LOG_LEVEL Determines the verbosity level of logs. Options: "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL", "PANIC"
+  ## @param sdp.configMap.data.METRICS_TYPE Defines the type of metrics system in use. Options: "PROMETHEUS".
+  ## @param sdp.configMap.data.EMAIL_SENDER_TYPE The messenger type used to send invitations to new dashboard users. Options: "DRY_RUN", "AWS_EMAIL", "TWILIO_EMAIL".
+  ## @param sdp.configMap.data.SMS_SENDER_TYPE The messenger type used to send text messages to recipients. Options: "DRY_RUN", "TWILIO_SMS", "TWILIO_WHATSAPP", "AWS_SMS".
+  ## @param sdp.configMap.data.CORS_ALLOWED_ORIGINS Specifies the domains allowed to make cross-origin requests. "*" means all domains are allowed.
+  ## @param sdp.configMap.data.DISABLE_RECAPTCHA Determines if ReCaptcha should be disabled for login ("true" or "false").
+  ## @param sdp.configMap.data.DISABLE_MFA Determines if email-based MFA should be disabled during login ("true" or "false").
+  ## @param sdp.configMap.data.SCHEDULER_PAYMENT_JOB_SECONDS The interval in seconds for the payment job that syncs payments between the SDP and the TSS.
+  ## @param sdp.configMap.data.SCHEDULER_RECEIVER_INVITATION_JOB_SECONDS The interval in seconds for the receiver invitation job that sends invitations to new receivers. 0 or negative values disable the job.
+  ## @param sdp.configMap.data.MAX_INVITATION_RESEND_ATTEMPTS The maximum number of times an invitation can be resent. 0 or negative values disable the job.
+  ## @param sdp.configMap.data.TENANT_XLM_BOOTSTRAP_AMOUNT The amount of XLM to be sent to a newly created tenant distribution account.
+  ## @param sdp.configMap.data.CIRCLE_API_TYPE The type of Circle API to be used. Options: "TRANSFERS", "PAYOUTS". Default: "TRANSFERS".
+  ## @param sdp.configMap.data.DB_MAX_OPEN_CONNS Maximum open connections per pool to the database.
+  ## @param sdp.configMap.data.DB_MAX_IDLE_CONNS Maximum idle connections retained in the pool.
+  ## @param sdp.configMap.data.DB_CONN_MAX_IDLE_TIME_SECONDS Close idle connections after N seconds.
+  ## @param sdp.configMap.data.DB_CONN_MAX_LIFETIME_SECONDS Recycle connections after N seconds.
+  ## @extra sdp.configMap.data.ENABLE_BRIDGE_INTEGRATION Determines if the bridge integration is enabled. If set to true, the bridge integration will be enabled.
+  ## @extra sdp.configMap.data.BRIDGE_BASE_URL The base URL of the bridge API. Required if ENABLE_BRIDGE_INTEGRATION is set to true.
+  ## @param sdp.configMap.data.ENABLE_EMBEDDED_WALLETS Determines if embedded wallet features are enabled ("true" or "false").
+  ## @param sdp.configMap.data.EMBEDDED_WALLETS_WASM_HASH The WASM hash of the smart contract for embedded wallets. Required when ENABLE_EMBEDDED_WALLETS is "true". Defaults to the official embedded wallets WASM hash.
+  ## @param sdp.configMap.data.ENABLE_SEP45 Determines if SEP-45 web authentication features are enabled ("true" or "false").
+  ## @extra sdp.configMap.data.SEP45_CONTRACT_ID The ID of the SEP-45 web authentication contract. Required when ENABLE_SEP45 is "true". Defaults to the pubnet/testnet contract ID based on global.isPubnet.
+  ## @extra sdp.configMap.data.RPC_URL The URL of the Stellar RPC server for embedded wallets and SEP-45 features. Uses global.rpc.url by default.
+  ## @extra sdp.configMap.data.RPC_REQUEST_AUTH_HEADER_KEY The name of the HTTP header to include when authenticating requests to a protected RPC server. Uses global.rpc.requestAuthHeaderKey by default.
+  configMap:
+    annotations:
+    data:
+      # Configurations with required values
+#      DISTRIBUTION_PUBLIC_KEY: #required
+#      SEP10_SIGNING_PUBLIC_KEY: #required
+#      RECAPTCHA_SITE_KEY: #required when using ReCaptcha
+
+      # Configurations with default values
+      ## General configuration
+      INSTANCE_NAME: "SDP Testnet"
+
+      ## Monitoring and logging configuration
+      CRASH_TRACKER_TYPE: "DRY_RUN"
+      ENVIRONMENT: "dev"
+      LOG_LEVEL: "INFO"
+      METRICS_TYPE: "PROMETHEUS"
+
+      ## Messaging service configuration
+      EMAIL_SENDER_TYPE: "DRY_RUN"
+      SMS_SENDER_TYPE: "DRY_RUN"
+
+      ## Security Configuration
+      CORS_ALLOWED_ORIGINS: "*"
+      DISABLE_RECAPTCHA: "false"
+      DISABLE_MFA: "false"
+
+      ## Background tasks configuration
+      SCHEDULER_PAYMENT_JOB_SECONDS: "10"
+      SCHEDULER_RECEIVER_INVITATION_JOB_SECONDS: "10"
+      MAX_INVITATION_RESEND_ATTEMPTS: "3"
+
+      ## Disbursement configuration
+      TENANT_XLM_BOOTSTRAP_AMOUNT: "5"
+      CIRCLE_API_TYPE: "TRANSFERS"
+
+      ## Database connection pool tuning (SDP/Core)
+      DB_MAX_OPEN_CONNS: "20"
+      DB_MAX_IDLE_CONNS: "2"
+      DB_CONN_MAX_IDLE_TIME_SECONDS: "10"
+      DB_CONN_MAX_LIFETIME_SECONDS: "300"
+
+      ## Embedded wallets configuration
+      ENABLE_EMBEDDED_WALLETS: "false"
+      EMBEDDED_WALLETS_WASM_HASH: "9b784817dff1620a3e2b223fe1eb8dac56e18980dea9726f692847ccbbd3a853"
+
+      ## SEP-45 configuration
+      ENABLE_SEP45: "false"
+#     SEP45_CONTRACT_ID: #required when ENABLE_SEP45 is "true" (defaults based on global.isPubnet)
+
+      ## RPC configuration
+#     RPC_URL: #required when ENABLE_EMBEDDED_WALLETS or ENABLE_SEP45 is "true"
+#     RPC_REQUEST_AUTH_HEADER_KEY: #optional
+
+  ## @extra sdp.kubeSecrets Kubernetes secrets are used to manage sensitive information, such as API keys and private keys. It's crucial that these details are kept private.
+  ## @param sdp.kubeSecrets.secretName The name of the Kubernetes secret object. Only use this if create is false.
+  ## @param sdp.kubeSecrets.create If true, the secret will be created. If false, it is assumed the secret already exists.
+  ## @param sdp.kubeSecrets.annotations Annotations to be added to the secret.
+  ## @param sdp.kubeSecrets.data The sensitive data to be stored in the secret.
+  ## @extra sdp.kubeSecrets.data.DATABASE_URL URL of the database used by the SDP.
+  ## @extra sdp.kubeSecrets.data.AWS_ACCESS_KEY_ID AWS IAM user's access key ID for authenticating to AWS services.
+  ## @extra sdp.kubeSecrets.data.AWS_REGION AWS region where services (like SES for email sending) are provisioned.
+  ## @extra sdp.kubeSecrets.data.AWS_SECRET_ACCESS_KEY AWS IAM user's secret access key for authenticating to AWS services.
+  ## @extra sdp.kubeSecrets.data.AWS_SES_SENDER_ID Identifier for the AWS SES service used for sending emails.
+  ## @extra sdp.kubeSecrets.data.AWS_SNS_SENDER_ID Identifier for the AWS SNS service used for sending text messages.
+  ## @extra sdp.kubeSecrets.data.TWILIO_ACCOUNT_SID Account SID for authenticating to the Twilio service, used for sending text messages.
+  ## @extra sdp.kubeSecrets.data.TWILIO_AUTH_TOKEN Authentication token for the Twilio service.
+  ## @extra sdp.kubeSecrets.data.TWILIO_SERVICE_SID Service SID for the specific Twilio service being utilized.
+  ## @extra sdp.kubeSecrets.data.TWILIO_WHATSAPP_FROM_NUMBER The WhatsApp Business number used to send messages (with whatsapp: prefix).
+  ## @extra sdp.kubeSecrets.data.TWILIO_WHATSAPP_RECEIVER_INVITATION_TEMPLATE_SID The Twilio Content SID for WhatsApp receiver invitation template (starts with HX).
+  ## @extra sdp.kubeSecrets.data.TWILIO_WHATSAPP_RECEIVER_OTP_TEMPLATE_SID The Twilio Content SID for WhatsApp receiver OTP template (starts with HX).
+  ## @extra sdp.kubeSecrets.data.TWILIO_SENDGRID_API_KEY API key for the Twilio SendGrid (email) service.
+  ## @extra sdp.kubeSecrets.data.TWILIO_SENDGRID_SENDER_ADDRESS Email address used to send emails via Twilio SendGrid.
+  ## @extra sdp.kubeSecrets.data.SENTRY_DSN The DSN for the Sentry service. it must be set if CRASH_TRACKER_TYPE is set to "SENTRY".
+  ## @extra sdp.kubeSecrets.data.EC256_PRIVATE_KEY [string] The EC256 Private Key. This key is used to sign the authentication token. This EC key needs to be at least as strong as prime256v1 (P-256).
+  ## @extra sdp.kubeSecrets.data.SEP24_JWT_SECRET The JWT secret used to sign SEP-24 JWT tokens for wallet registration and interactive deposit authentication.
+  ## @extra sdp.kubeSecrets.data.RECAPTCHA_SITE_SECRET_KEY Secret key for Google reCAPTCHA service to verify user's non-robotic behavior.
+  ## @extra sdp.kubeSecrets.data.SEP10_SIGNING_PRIVATE_KEY The public key of the Stellar account that signs the SEP-10 transactions. It's also used to sign URLs. Required if global.sep10PrivateKey not set.
+  ## @extra sdp.kubeSecrets.data.DISTRIBUTION_SEED The HOST's Stellar distribution account, used to create channel accounts. This is needed for the init container.
+  ## @extra sdp.kubeSecrets.data.RPC_REQUEST_AUTH_HEADER_VALUE The value of the HTTP header used for authenticating requests to a protected RPC server. Uses global.rpc.requestAuthHeaderValue by default.
+  ## @extra sdp.kubeSecrets.data.DISTRIBUTION_ACCOUNT_ENCRYPTION_PASSPHRASE A Stellar-compliant ed25519 private key used to encrypt and decrypt the private keys of tenants' distribution accounts.
+  ## @extra sdp.kubeSecrets.data.CHANNEL_ACCOUNT_ENCRYPTION_PASSPHRASE The private key used to encrypt the channel accounts secrets in the database.
+  ## @extra sdp.kubeSecrets.data.ADMIN_ACCOUNT The ID of the admin account. To use, add to the request header as 'Authorization', formatted as Base64-encoded 'ADMIN_ACCOUNT:ADMIN_API_KEY'.",
+  ## @extra sdp.kubeSecrets.data.ADMIN_API_KEY The API key for the admin account. To use, add to the request header as 'Authorization', formatted as Base64-encoded 'ADMIN_ACCOUNT:ADMIN_API_KEY'.",
+  ## @extra sdp.kubeSecrets.data.BRIDGE_API_KEY The API key for the bridge integration. Required if ENABLE_BRIDGE_INTEGRATION is set to true.
+  kubeSecrets:
+    secretName: "sdp-backend-secret-name"
+    create: false
+    annotations:
+    data: {}
+
+      ## General configuration
+#      DATABASE_URL: #required
+
+      ## Messaging configuration
+      ### AWS Config when EMAIL_SENDER_TYPE is set to "AWS_EMAIL" or SMS_SENDER_TYPE is set to "AWS_SMS"
+#      AWS_ACCESS_KEY_ID: MY_AWS_ACCESS_KEY_ID
+#      AWS_REGION: MY_AWS_REGION
+#      AWS_SECRET_ACCESS_KEY: MY_AWS_SECRET_ACCESS_KEY
+#      AWS_SES_SENDER_ID: MY_AWS_SES_SENDER_ID
+#      AWS_SNS_SENDER_ID: MY_AWS_SNS_SENDER_ID
+
+      ### Twilio Config when SMS_SENDER_TYPE is set to "TWILIO_SMS" or "TWILIO_WHATSAPP"
+#      TWILIO_ACCOUNT_SID: MY_TWILIO_ACCOUNT_SID
+#      TWILIO_AUTH_TOKEN: MY_TWILIO_AUTH_TOKEN
+#      TWILIO_SERVICE_SID: MY_TWILIO_SERVICE_SID
+
+      ### Twilio WhatsApp Config when SMS_SENDER_TYPE is set to "TWILIO_WHATSAPP"
+#      TWILIO_WHATSAPP_FROM_NUMBER: whatsapp:+1234567890
+#      TWILIO_WHATSAPP_RECEIVER_INVITATION_TEMPLATE_SID: HXabcdef123456789
+#      TWILIO_WHATSAPP_RECEIVER_OTP_TEMPLATE_SID: HXabcdef123456788
+
+      ### Twilio Sendgrid Config when EMAIL_SENDER_TYPE is set to "TWILIO_EMAIL"
+#      TWILIO_SENDGRID_API_KEY: MY_TWILIO_SENDGRID_API_KEY
+#      TWILIO_SENDGRID_SENDER_ADDRESS: MY_TWILIO_SENDGRID_SENDER_ADDRESS
+
+      ## Monitoring and logging configuration
+#      SENTRY_DSN: #required when CRASH_TRACKER_TYPE is set to "SENTRY"
+
+      ## Security configuration
+#      EC256_PRIVATE_KEY: #required
+#      SEP24_JWT_SECRET: #required
+#      RECAPTCHA_SITE_SECRET_KEY:  #required when using ReCaptcha
+
+      ## Stellar configuration
+#      SEP10_SIGNING_PRIVATE_KEY: #required
+#      DISTRIBUTION_SEED: #required
+#      DISTRIBUTION_ACCOUNT_ENCRYPTION_PASSPHRASE: #required
+#      CHANNEL_ACCOUNT_ENCRYPTION_PASSPHRASE: #required
+
+      ## Admin account configuration
+#      ADMIN_ACCOUNT: #required
+#      ADMIN_API_KEY: #required
+
+      ## Bridge Integration configuration
+#      BRIDGE_API_KEY: #optional, depends on the value of ENABLE_BRIDGE_INTEGRATION.
+
+      ## RPC configuration
+#      RPC_REQUEST_AUTH_HEADER_VALUE: #optional, depends on value of RPC_REQUEST_AUTH_HEADER_KEY
+
+  ## @extra sdp.ingress Configuration for the ingress controller for the SDP service.
+  ## @param sdp.ingress.enabled If true, an ingress controller will be created for the SDP service.
+  ## @param sdp.ingress.className Name of the IngressClass to be used for the ingress controller.
+  ## @skip sdp.ingress.annotations
+  ## @param sdp.ingress.tls[0].hosts List of hosts covered by the TLS certificate.
+  ## @param sdp.ingress.tls[0].secretName The name of the Kubernetes TLS secret. You need to create this secret manually.
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      nginx.ingress.kubernetes.io/custom-response-headers: "X-Frame-Options: DENY || X-Content-Type-Options: nosniff || Strict-Transport-Security: max-age=31536000; includeSubDomains"
+      nginx.ingress.kubernetes.io/limit-rpm: "120"
+      nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
+    tls:
+    - hosts:
+      - '{{ include "sdp.domain" . }}'
+      secretName: backend-tls-cert-name # You need to create this secret manually. For more instructions, please refer to helmchart/docs/README.md
+      # NOTE: the hosts to be used here will be the same ones as in the sdp.route section.
+
+  ## @extra sdp.httpRoute Configuration for the Gateway API HTTPRoute for the SDP service. Additive to (not a replacement for) sdp.ingress.
+  ## @param sdp.httpRoute.enabled If true, a Gateway API HTTPRoute will be created for the SDP service. When sdp.route.adminDomain is set, a second HTTPRoute is created for the admin endpoint.
+  ## @extra sdp.httpRoute.parentRefs References to existing Gateways the HTTPRoute should attach to. Ignored when sdp.httpRoute.gateway.enabled is true.
+  ## @param sdp.httpRoute.parentRefs[0].name Name of the parent Gateway resource.
+  ## @param sdp.httpRoute.parentRefs[0].namespace Namespace of the parent Gateway. Empty string defaults to the release namespace.
+  ## @param sdp.httpRoute.parentRefs[0].sectionName Listener name within the Gateway to attach to. Empty string attaches to all listeners.
+  ## @param sdp.httpRoute.hostnames Optional list of hostnames for the HTTPRoute. When empty, defaults to sdp.route.domain and sdp.route.mtnDomain. Each entry must be a DNS hostname (no scheme, no port). Strings are passed through `tpl`, so Helm expressions like '{{ .Values.sdp.route.domain }}' work.
+  ## @param sdp.httpRoute.annotations Extra annotations added to the HTTPRoute object.
+  ## @param sdp.httpRoute.labels Extra labels added to the HTTPRoute object.
+  ## @extra sdp.httpRoute.gateway Optional in-chart Gateway resource. Most users will set sdp.httpRoute.parentRefs instead and let a platform-owned Gateway handle traffic.
+  ## @param sdp.httpRoute.gateway.enabled If true, a Gateway resource is created in the release namespace and the HTTPRoute auto-attaches to it (parentRefs is ignored).
+  ## @param sdp.httpRoute.gateway.gatewayClassName Name of the GatewayClass to use (e.g. "istio", "envoy", "cilium"). Required when gateway.enabled is true.
+  ## @param sdp.httpRoute.gateway.name Optional name override for the created Gateway. Defaults to `<fullname>-gateway`.
+  ## @extra sdp.httpRoute.gateway.listeners Listener configuration for the created Gateway.
+  ## @param sdp.httpRoute.gateway.listeners[0].name Listener name.
+  ## @param sdp.httpRoute.gateway.listeners[0].protocol Listener protocol (HTTP or HTTPS).
+  ## @param sdp.httpRoute.gateway.listeners[0].port Listener port.
+  ## @param sdp.httpRoute.gateway.annotations Extra annotations added to the Gateway object.
+  ## @param sdp.httpRoute.gateway.labels Extra labels added to the Gateway object.
+  httpRoute:
+    enabled: false
+    parentRefs:
+      - name: sdp-gateway
+        namespace: ""      # defaults to release namespace
+        sectionName: ""
+    hostnames: []
+    annotations: {}
+    labels: {}
+    gateway:
+      enabled: false
+      gatewayClassName: ""
+      name: ""
+      listeners:
+        - name: http
+          protocol: HTTP
+          port: 80
+        # - name: https
+        #   protocol: HTTPS
+        #   port: 443
+        #   tls:
+        #     mode: Terminate
+        #     certificateRefs:
+        #       - name: backend-tls-cert-name
+      annotations: {}
+      labels: {}
+
+# =========================== START tss ===========================
+## @section Transaction Submission Service
+## @descriptionStart
+## Configuration parameters for the Transaction Submission Service. This is the service that submits all payment transactions to the Stellar network.
+##  This service is designed to maximize payment throughput, handle queuing, and graceful resubmission/error handling
+## @descriptionEnd
+tss:
+
+  ## @param tss.enabled If true, the tss will be deployed.
+  enabled: true
+
+  ## @extra tss.route Configuration related to the routing of the TSS.
+  ## @param tss.route.schema Protocol scheme used for the service. Can be "http" or "https".
+  ## @param tss.route.port Primary port on which the TSS listens.
+  ## @param tss.route.metricsPort Port dedicated to metrics collection for the TSS.
+  route:
+    schema: "https"
+    port: "9000"
+    metricsPort: "9002"
+
+  ## @extra tss.deployment Configuration related to the deployment of the TSS.
+  ## @param tss.deployment.annotations Annotations to be added to the deployment.
+  ## @param tss.deployment.podAnnotations Annotations specific to the pods.
+  ## @param tss.deployment.strategy Configuration related to the deployment strategy, ensuring smooth updates and minimal downtime.
+  ## @param tss.deployment.podSecurityContext Security settings for the pods.
+  ## @param tss.deployment.securityContext Security settings for the container within the pod.
+  ## @param tss.deployment.resources Resource limits and requests for the TSS service pods. If not specified, falls back to global.resources.
+  ## @param tss.deployment.nodeSelector Node selector to determine which nodes should run the pods.
+  ## @param tss.deployment.tolerations Tolerations to ensure pods aren't scheduled on unsuitable nodes.
+  ## @param tss.deployment.affinity Affinity rules to determine where pods get scheduled based on node conditions.
+  ## @param tss.deployment.priorityClassName Name of the priority class to be used by the TSS deployment. If not specified, no priority class will be used.
+  ## @param tss.deployment.topologySpreadConstraints Pod topology spread constraints for the TSS service, overrides global setting if defined.
+  deployment:
+    annotations:
+    podAnnotations: {}
+    strategy: {}
+    podSecurityContext: {}
+    securityContext: {}
+    resources: {}
+    nodeSelector: {}
+    tolerations: []
+    affinity: {}
+    priorityClassName: ""
+    topologySpreadConstraints: []
+
+  ## @extra tss.configMap Configuration settings for the Transaction Submission Service (TSS) ConfigMap.
+  ## @param tss.configMap.annotations Annotations to be added to the ConfigMap.
+  ## @extra tss.configMap.data Used to inject non-sensitive environment variables into the TSS deployment; for the latest variables, consult the application's CLI `-h` command.
+  ## @extra tss.configMap.data.DISTRIBUTION_PUBLIC_KEY The public key of the HOST's Stellar distribution account, used to create channel accounts. Required if global.distributionPublicKey not set.
+  ## @param tss.configMap.data.CRASH_TRACKER_TYPE Determines the type of crash tracker in use. Options: "DRY_RUN", "SENTRY".
+  ## @param tss.configMap.data.ENVIRONMENT Specifies the environment TSS is running in (e.g. "localhost").
+  ## @param tss.configMap.data.LOG_LEVEL Determines the verbosity level of logs. Options: "TRACE", "DEBUG", "INFO", "WARN", "ERROR", "FATAL", "PANIC"
+  ## @param tss.configMap.data.TSS_METRICS_TYPE Defines the type of metrics system that the TSS should use. Options: "TSS_PROMETHEUS".
+  ## @param tss.configMap.data.NUM_CHANNEL_ACCOUNTS The number of channel accounts the TSS will create/use. Channel accounts provide a method for submitting transactions to the network at a high rate.
+  ## @param tss.configMap.data.MAX_BASE_FEE Specifies the maximum base fee (in stroops) the TSS is willing to pay per transaction. This helps to control costs and ensures transactions are economically feasible.
+  ## @param tss.configMap.data.QUEUE_POLLING_INTERVAL Specifies the interval (in seconds) at which the TSS should poll the queue.
+  ## @param tss.configMap.data.DB_MAX_OPEN_CONNS Maximum open connections per pool to the database.
+  ## @param tss.configMap.data.DB_MAX_IDLE_CONNS Maximum idle connections retained in the pool.
+  ## @param tss.configMap.data.DB_CONN_MAX_IDLE_TIME_SECONDS Close idle connections after N seconds.
+  ## @param tss.configMap.data.DB_CONN_MAX_LIFETIME_SECONDS Recycle connections after N seconds.
+  ## @extra tss.configMap.data.RPC_URL The URL of the Stellar RPC server for embedded wallets and SEP-45 features. Uses global.rpc.url by default.
+  ## @extra tss.configMap.data.RPC_REQUEST_AUTH_HEADER_KEY The name of the HTTP header to include when authenticating requests to a protected RPC server. Uses global.rpc.requestAuthHeaderKey by default.
+  configMap:
+    annotations:
+    data:
+      # Configurations with required values
+      # DISTRIBUTION_PUBLIC_KEY: #required
+
+      # Configurations with default values
+
+      ## Monitoring and logging configuration
+      CRASH_TRACKER_TYPE: "DRY_RUN"
+      ENVIRONMENT: "development"
+      LOG_LEVEL: "INFO"
+      TSS_METRICS_TYPE: "TSS_PROMETHEUS"
+
+      ## Stellar configuration
+      NUM_CHANNEL_ACCOUNTS: "1"
+      MAX_BASE_FEE: "100000"
+
+      ## Background tasks configuration
+      QUEUE_POLLING_INTERVAL: "6"
+
+      ## Database connection pool tuning (tss)
+      DB_MAX_OPEN_CONNS: "20"
+      DB_MAX_IDLE_CONNS: "2"
+      DB_CONN_MAX_IDLE_TIME_SECONDS: "10"
+      DB_CONN_MAX_LIFETIME_SECONDS: "300"
+
+      ## RPC configuration
+#     RPC_URL: #required when ENABLE_EMBEDDED_WALLETS is "true"
+#     RPC_REQUEST_AUTH_HEADER_KEY: #optional
+
+  ## @extra tss.kubeSecrets Kubernetes secrets are used to manage sensitive information, such as API keys and private keys. It's crucial that these details are kept private.
+  ## @param tss.kubeSecrets.secretName The name of the Kubernetes secret object. Only use this if create is false.
+  ## @param tss.kubeSecrets.create If true, the secret will be created. If false, it is assumed the secret already exists.
+  ## @param tss.kubeSecrets.annotations Annotations to be added to the secret.
+  ## @param tss.kubeSecrets.data The sensitive data to be stored in the secret.
+  ## @extra tss.kubeSecrets.data.DATABASE_URL URL of the database used by the TSS.
+  ## @extra tss.kubeSecrets.data.DISTRIBUTION_SEED The HOST's Stellar distribution account, used to create channel accounts.
+  ## @extra tss.kubeSecrets.data.CHANNEL_ACCOUNT_ENCRYPTION_PASSPHRASE The private key used to encrypt the channel accounts secrets in the database.
+  ## @extra tss.kubeSecrets.data.DISTRIBUTION_ACCOUNT_ENCRYPTION_PASSPHRASE A Stellar-compliant ed25519 private key used to encrypt and decrypt the private keys of tenants' distribution accounts.
+  ## @extra tss.kubeSecrets.data.SENTRY_DSN The DSN for the Sentry service. it must be set if CRASH_TRACKER_TYPE is set to "SENTRY".
+  ## @extra tss.kubeSecrets.data.RPC_REQUEST_AUTH_HEADER_VALUE The value of the HTTP header used for authenticating requests to a protected RPC server. Uses global.rpc.requestAuthHeaderValue by default.
+  kubeSecrets:
+    secretName: "tss-secret-name"
+    create: false
+    annotations: {}
+    data: {}
+      ## General configuration
+#      DATABASE_URL: #required
+
+      ## Stellar configuration
+#      DISTRIBUTION_SEED: #required
+#      CHANNEL_ACCOUNT_ENCRYPTION_PASSPHRASE: #required
+#      DISTRIBUTION_ACCOUNT_ENCRYPTION_PASSPHRASE: #required
+
+      ## Monitoring and logging configuration
+#      SENTRY_DSN: #optional
+
+      ## RPC configuration
+#      RPC_REQUEST_AUTH_HEADER_VALUE: #optional, depends on value of RPC_REQUEST_AUTH_HEADER_KEY
+
+
+      # =========================== START dashboard ===========================
+      ## @section Dashboard
+      ## @descriptionStart
+      ## Configuration parameters for the Dashboard. This is the user interface administrators use to initiate and track the progress of disbursements.
+      ## @descriptionEnd
+dashboard:
+
+  ## @param dashboard.enabled If true, the dashboard will be deployed.
+  enabled: true
+
+  ## @extra dashboard.route Configuration related to the routing of the Dashboard.
+  ## @param dashboard.route.schema Protocol scheme used for the service. Can be "http" or "https".
+  ## @param dashboard.route.domain Public domain/address of the Dashboard.
+  ## @param dashboard.route.mtnDomain Public domain/address of the multi-tenant Dashboard. This is a wild-card domain used for multi-tenant setups e.g. "*.sdp-dashboard.localhost.com".
+  ## @param dashboard.route.port Primary port on which the Dashboard listens.
+  route:
+    schema: "https"
+    domain: #required
+    mtnDomain: #required
+    port: "80"
+
+  ## @extra dashboard.image Configuration related to the Docker image used by the Dashboard.
+  ## @param dashboard.image.fullName Full name of the Docker image.
+  ## @param dashboard.image.pullPolicy Image pull policy for the dashboard. For locally built images, consider using "Never" or "IfNotPresent".
+  image:
+    fullName: stellar/stellar-disbursement-platform-frontend:6.6.0
+    pullPolicy: Always
+
+  ## @extra dashboard.deployment Configuration related to the deployment of the Dashboard.
+  ## @param dashboard.deployment.annotations Annotations to be added to the deployment.
+  ## @param dashboard.deployment.podAnnotations Annotations specific to the pods.
+  ## @param dashboard.deployment.strategy Configuration related to the deployment strategy, ensuring smooth updates and minimal downtime.
+  ## @param dashboard.deployment.podSecurityContext Security settings for the pods.
+  ## @param dashboard.deployment.securityContext Security settings for the container within the pod.
+  ## @param dashboard.deployment.resources Resource limits and requests for the Dashboard service pods. If not specified, falls back to global.resources.
+  ## @param dashboard.deployment.nodeSelector Node selector to determine which nodes should run the pods.
+  ## @param dashboard.deployment.tolerations Tolerations to ensure pods aren't scheduled on unsuitable nodes.
+  ## @param dashboard.deployment.affinity Affinity rules to determine where pods get scheduled based on node conditions.
+  ## @param dashboard.deployment.priorityClassName Name of the priority class to be used by the Dashboard deployment. If not specified, no priority class will be used.
+  ## @param dashboard.deployment.topologySpreadConstraints Pod topology spread constraints for the Dashboard service, overrides global setting if defined.
+  deployment:
+    annotations: {}
+    podAnnotations: {}
+    strategy: {}
+    podSecurityContext: {}
+    securityContext: {}
+    resources: {}
+    nodeSelector: { }
+    tolerations: [ ]
+    affinity: { }
+    priorityClassName: ""
+    topologySpreadConstraints: []
+
+  ## @extra dashboard.configMap Configuration settings for the Dashboard ConfigMap.
+  ## @param dashboard.configMap.annotations Annotations to be added to the ConfigMap.
+  ## @param dashboard.configMap.data Used to inject non-sensitive environment variables into the Dashboard deployment.
+  ## @extra dashboard.configMap.data.RECAPTCHA_SITE_KEY The site key for Google reCAPTCHA service.
+  ## @extra dashboard.configMap.data.RPC_ENABLED Enables RPC features in the Dashboard; defaults based on global.rpc.url.
+  configMap:
+    annotations: {}
+    data: {}
+#      RECAPTCHA_SITE_KEY: "reCaptchaSiteKey"
+
+  ## @extra dashboard.ingress Configuration for the ingress controller for the dashboard.
+  ## @param dashboard.ingress.enabled If true, an ingress controller will be created for the dashboard.
+  ## @param dashboard.ingress.className Name of the IngressClass to be used for the ingress controller.
+  ## @skip dashboard.ingress.annotations
+  ## @param dashboard.ingress.tls[0].hosts List of hosts covered by the TLS certificate.
+  ## @param dashboard.ingress.tls[0].secretName The name of the Kubernetes TLS secret. You need to create this secret manually.
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations: {}
+    tls:
+    - hosts:
+      - '{{ include "sdp.dashboard.domain" . }}'
+      secretName: dashboard-tls-cert-name # You need to create this secret manually. For more instructions, please refer to helmchart/docs/README.md
+
+  ## @extra dashboard.httpRoute Configuration for the Gateway API HTTPRoute for the dashboard. Additive to (not a replacement for) dashboard.ingress.
+  ## @param dashboard.httpRoute.enabled If true, a Gateway API HTTPRoute will be created for the dashboard.
+  ## @extra dashboard.httpRoute.parentRefs References to existing Gateways the HTTPRoute should attach to. Ignored when dashboard.httpRoute.gateway.enabled is true.
+  ## @param dashboard.httpRoute.parentRefs[0].name Name of the parent Gateway resource.
+  ## @param dashboard.httpRoute.parentRefs[0].namespace Namespace of the parent Gateway. Empty string defaults to the release namespace.
+  ## @param dashboard.httpRoute.parentRefs[0].sectionName Listener name within the Gateway to attach to. Empty string attaches to all listeners.
+  ## @param dashboard.httpRoute.hostnames Optional list of hostnames for the HTTPRoute. When empty, defaults to dashboard.route.domain and dashboard.route.mtnDomain. Each entry must be a DNS hostname (no scheme, no port). Strings are passed through `tpl`, so Helm expressions like '{{ .Values.dashboard.route.domain }}' work.
+  ## @param dashboard.httpRoute.annotations Extra annotations added to the HTTPRoute object.
+  ## @param dashboard.httpRoute.labels Extra labels added to the HTTPRoute object.
+  ## @extra dashboard.httpRoute.gateway Optional in-chart Gateway resource. Most users will set dashboard.httpRoute.parentRefs instead and let a platform-owned Gateway handle traffic.
+  ## @param dashboard.httpRoute.gateway.enabled If true, a Gateway resource is created in the release namespace and the HTTPRoute auto-attaches to it (parentRefs is ignored).
+  ## @param dashboard.httpRoute.gateway.gatewayClassName Name of the GatewayClass to use (e.g. "istio", "envoy", "cilium"). Required when gateway.enabled is true.
+  ## @param dashboard.httpRoute.gateway.name Optional name override for the created Gateway. Defaults to `<fullname>-dashboard-gateway`.
+  ## @extra dashboard.httpRoute.gateway.listeners Listener configuration for the created Gateway.
+  ## @param dashboard.httpRoute.gateway.listeners[0].name Listener name.
+  ## @param dashboard.httpRoute.gateway.listeners[0].protocol Listener protocol (HTTP or HTTPS).
+  ## @param dashboard.httpRoute.gateway.listeners[0].port Listener port.
+  ## @param dashboard.httpRoute.gateway.annotations Extra annotations added to the Gateway object.
+  ## @param dashboard.httpRoute.gateway.labels Extra labels added to the Gateway object.
+  httpRoute:
+    enabled: false
+    parentRefs:
+      - name: dashboard-gateway
+        namespace: ""      # defaults to release namespace
+        sectionName: ""
+    hostnames: []
+    annotations: {}
+    labels: {}
+    gateway:
+      enabled: false
+      gatewayClassName: ""
+      name: ""
+      listeners:
+        - name: http
+          protocol: HTTP
+          port: 80
+        # - name: https
+        #   protocol: HTTPS
+        #   port: 443
+        #   tls:
+        #     mode: Terminate
+        #     certificateRefs:
+        #       - name: dashboard-tls-cert-name
+      annotations: {}
+      labels: {}

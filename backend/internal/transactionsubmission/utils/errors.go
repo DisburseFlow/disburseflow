@@ -1,0 +1,508 @@
+package utils
+
+import (
+	"errors"
+	"fmt"
+	"net/http"
+	"slices"
+	"strings"
+
+	"github.com/stellar/go-stellar-sdk/clients/horizonclient"
+	"github.com/stellar/go-stellar-sdk/protocols/horizon"
+	"github.com/stellar/go-stellar-sdk/support/log"
+	"github.com/stellar/go-stellar-sdk/support/render/problem"
+
+	"github.com/stellar/stellar-disbursement-platform-backend/internal/stellar"
+	sdpUtils "github.com/stellar/stellar-disbursement-platform-backend/internal/utils"
+)
+
+// TransactionError represents the base interface for handling transaction errors
+type TransactionError interface {
+	Error() string
+	IsRetryable() bool
+	ShouldMarkAsError() bool
+	ShouldReportToCrashTracker() bool
+	GetErrorType() string
+}
+
+// HorizonSpecificError represents errors that come from Horizon transaction submission
+type HorizonSpecificError interface {
+	TransactionError
+	IsBadSequence() bool
+	IsTxInsufficientFee() bool
+	IsDestinationAccountNotReady() bool
+	IsEntryArchived() bool
+}
+
+// TransactionStatusUpdateError is an error that occurs when failing to update a transaction's status.
+type TransactionStatusUpdateError struct {
+	Status   string
+	TxID     string
+	ForRetry bool
+	// Err is the underlying error that caused the transaction status update to fail.
+	Err error
+}
+
+func (e *TransactionStatusUpdateError) Error() string {
+	forRetry := ""
+	if e.ForRetry {
+		forRetry = " (for retry)"
+	}
+	return fmt.Sprintf("updating transaction(ID=%q) status to %s%s: %v", e.TxID, e.Status, forRetry, e.Err)
+}
+
+func (e *TransactionStatusUpdateError) Unwrap() error {
+	return e.Err
+}
+
+func NewTransactionStatusUpdateError(status, txID string, forRetry bool, err error) *TransactionStatusUpdateError {
+	return &TransactionStatusUpdateError{
+		Status:   status,
+		TxID:     txID,
+		ForRetry: forRetry,
+		Err:      err,
+	}
+}
+
+var _ error = &TransactionStatusUpdateError{}
+
+// HorizonErrorWrapper is an error that occurs when a horizon response is not successful.
+//
+//nolint:errname // This is both an error and a wrapper
+type HorizonErrorWrapper struct {
+	StatusCode  int
+	Problem     problem.P
+	Err         error
+	ResultCodes *horizon.TransactionResultCodes
+}
+
+func NewHorizonErrorWrapper(err error) *HorizonErrorWrapper {
+	if err == nil {
+		return nil
+	}
+
+	var existingHorizonErr *HorizonErrorWrapper
+	if errors.As(err, &existingHorizonErr) {
+		return existingHorizonErr
+	}
+
+	hError := horizonclient.GetError(err)
+	if hError == nil {
+		return &HorizonErrorWrapper{
+			Err: err,
+		}
+	}
+
+	resultCodes, resCodeErr := hError.ResultCodes()
+	if resCodeErr != nil {
+		log.Warnf("parsing result_codes: %v", resCodeErr)
+	}
+
+	return &HorizonErrorWrapper{
+		Err:         err,
+		Problem:     hError.Problem,
+		StatusCode:  hError.Problem.Status,
+		ResultCodes: resultCodes,
+	}
+}
+
+func (e *HorizonErrorWrapper) Unwrap() error {
+	return e.Err
+}
+
+func (e *HorizonErrorWrapper) Error() string {
+	if !e.IsHorizonError() {
+		return fmt.Sprintf("horizon response error: %v", e.Err)
+	}
+
+	msgBuilder := &strings.Builder{}
+	fmt.Fprintf(msgBuilder, "horizon response error: StatusCode=%d", e.StatusCode)
+	if e.Problem.Type != "" {
+		fmt.Fprintf(msgBuilder, ", Type=%s", e.Problem.Type)
+	}
+	if e.Problem.Title != "" {
+		fmt.Fprintf(msgBuilder, ", Title=%s", e.Problem.Title)
+	}
+	if e.Problem.Detail != "" {
+		fmt.Fprintf(msgBuilder, ", Detail=%s", e.Problem.Detail)
+	}
+	// TODO: place extras right after status codes, for better readability. Details are pretty verbose and not that useful.
+	if e.HasResultCodes() {
+		e.handleExtrasResultCodes(msgBuilder)
+	}
+	return msgBuilder.String()
+}
+
+func (e *HorizonErrorWrapper) IsHorizonError() bool {
+	return !sdpUtils.IsEmpty(e.Problem)
+}
+
+func (e *HorizonErrorWrapper) IsNotFound() bool {
+	return e.IsHorizonError() && e.StatusCode == http.StatusNotFound
+}
+
+func (e *HorizonErrorWrapper) IsRateLimit() bool {
+	return e.IsHorizonError() && e.StatusCode == http.StatusTooManyRequests
+}
+
+func (e *HorizonErrorWrapper) IsGatewayTimeout() bool {
+	return e.IsHorizonError() && e.StatusCode == http.StatusGatewayTimeout
+}
+
+func (e *HorizonErrorWrapper) HasResultCodes() bool {
+	return e.IsHorizonError() && e.ResultCodes != nil
+}
+
+// IsNotEnoughLumens verifies if the Horizon Error is related to the
+// transaction attempting to bring the source account lumens balance below the minimum reserve.
+func (e *HorizonErrorWrapper) IsNotEnoughLumens() bool {
+	if !e.HasResultCodes() {
+		return false
+	}
+
+	code := "tx_insufficient_balance"
+	opCode := "op_underfunded"
+	return (e.ResultCodes.TransactionCode == code ||
+		e.ResultCodes.InnerTransactionCode == code ||
+		slices.Contains(e.ResultCodes.OperationCodes, opCode))
+}
+
+// IsNoSourceAccount verifies if the Horizon Error is related to the
+// source account not being found.
+func (e *HorizonErrorWrapper) IsNoSourceAccount() bool {
+	if !e.HasResultCodes() {
+		return false
+	}
+
+	txCode := "tx_no_source_account"
+	opCode := "op_no_source_account"
+	return (e.ResultCodes.TransactionCode == txCode ||
+		e.ResultCodes.InnerTransactionCode == txCode ||
+		slices.Contains(e.ResultCodes.OperationCodes, opCode))
+}
+
+// IsNoIssuer verifies if the Horizon Error is related to the
+// issuer of the asset not existing.
+func (e *HorizonErrorWrapper) IsNoIssuer() bool {
+	if !e.HasResultCodes() {
+		return false
+	}
+
+	opCode := "op_no_issuer"
+	return slices.Contains(e.ResultCodes.OperationCodes, opCode)
+}
+
+// IsSourceAccountNotAuthorized verifies if the Horizon Error is related to the
+// source account not having authorization from the asset issuer to send the asset.
+func (e *HorizonErrorWrapper) IsSourceAccountNotAuthorized() bool {
+	if !e.HasResultCodes() {
+		return false
+	}
+
+	opCode := "op_src_not_authorized"
+	return slices.Contains(e.ResultCodes.OperationCodes, opCode)
+}
+
+// IsSourceNoTrustline verifies if the Horizon Error is related to the
+// source account not having a trustline for the asset being sent.
+func (e *HorizonErrorWrapper) IsSourceNoTrustline() bool {
+	if !e.HasResultCodes() {
+		return false
+	}
+
+	opCode := "op_src_no_trust"
+	return slices.Contains(e.ResultCodes.OperationCodes, opCode)
+}
+
+// IsDestinationAccountNotAuthorized verifies if the Horizon Error is related to the
+// destination account is not being authorized by the asset issuer to receive the asset.
+func (e *HorizonErrorWrapper) IsDestinationAccountNotAuthorized() bool {
+	if !e.HasResultCodes() {
+		return false
+	}
+
+	opCode := "op_not_authorized"
+	return slices.Contains(e.ResultCodes.OperationCodes, opCode)
+}
+
+// IsDestinationNoTrustline verifies if the Horizon Error is related to the
+// destination account not having a trustline for the asset being sent.
+func (e *HorizonErrorWrapper) IsDestinationNoTrustline() bool {
+	if !e.HasResultCodes() {
+		return false
+	}
+
+	opCode := "op_no_trust"
+	return slices.Contains(e.ResultCodes.OperationCodes, opCode)
+}
+
+// IsLineFull verifies if the Horizon Error is related to the
+// destination account not having sufficient limits to receive the payment amount
+// and still satisfy its buying liabilities.
+func (e *HorizonErrorWrapper) IsLineFull() bool {
+	if !e.HasResultCodes() {
+		return false
+	}
+
+	opCode := "op_line_full"
+	return slices.Contains(e.ResultCodes.OperationCodes, opCode)
+}
+
+// IsNoDestinationAccount verifies if the Horizon Error is related to the
+// destination account not existing.
+func (e *HorizonErrorWrapper) IsNoDestinationAccount() bool {
+	if !e.HasResultCodes() {
+		return false
+	}
+
+	opCode := "op_no_destination"
+	return slices.Contains(e.ResultCodes.OperationCodes, opCode)
+}
+
+// IsBadAuthentication verifies if the Horizon Error is related to
+// invalid transaction or operation signatures.
+func (e *HorizonErrorWrapper) IsBadAuthentication() bool {
+	if !e.HasResultCodes() {
+		return false
+	}
+
+	txCodes := []string{"tx_bad_auth", "tx_bad_auth_extra"}
+	opCode := "op_bad_auth"
+	return (slices.Contains(txCodes, e.ResultCodes.TransactionCode) ||
+		slices.Contains(txCodes, e.ResultCodes.InnerTransactionCode) ||
+		slices.Contains(e.ResultCodes.OperationCodes, opCode))
+}
+
+// IsTxInsufficientFee verifies if the Horizon Error is related to the
+// fee submitted being too small to be accepted by to the ledger by
+// the network.
+func (e *HorizonErrorWrapper) IsTxInsufficientFee() bool {
+	if !e.HasResultCodes() {
+		return false
+	}
+
+	txCode := "tx_insufficient_fee"
+	return e.ResultCodes.TransactionCode == txCode || e.ResultCodes.InnerTransactionCode == txCode
+}
+
+// IsBadSequence verifies if the Horizon Error is related to the
+// transaction sequence number being invalid.
+func (e *HorizonErrorWrapper) IsBadSequence() bool {
+	if !e.HasResultCodes() {
+		return false
+	}
+
+	txCode := "tx_bad_seq"
+	return e.ResultCodes.TransactionCode == txCode || e.ResultCodes.InnerTransactionCode == txCode
+}
+
+// IsSourceAccountNotReady verifies if the Horizon Error is related to the
+// source account of the transaction. It gathers all errors that would happen
+// in a transaction because of a misconfiguration of the source account.
+func (e *HorizonErrorWrapper) IsSourceAccountNotReady() bool {
+	return (e.IsNotEnoughLumens() ||
+		e.IsNoSourceAccount() ||
+		e.IsSourceAccountNotAuthorized() ||
+		e.IsSourceNoTrustline())
+}
+
+// IsDestinationAccountNotReady verifies if the Horizon Error is related to the
+// destination account of the transaction. It gathers all errors that would happen
+// in a transaction because of a misconfiguration of the destination account.
+func (e *HorizonErrorWrapper) IsDestinationAccountNotReady() bool {
+	return (e.IsDestinationAccountNotAuthorized() ||
+		e.IsDestinationNoTrustline() ||
+		e.IsNoDestinationAccount() ||
+		e.IsLineFull())
+}
+
+// IsEntryArchived verifies if the Horizon Error is related to a Soroban ledger
+// entry being archived due to state archival.
+func (e *HorizonErrorWrapper) IsEntryArchived() bool {
+	if !e.HasResultCodes() {
+		return false
+	}
+
+	return slices.Contains(e.ResultCodes.OperationCodes, "entry_archived")
+}
+
+// ShouldMarkAsError determines whether a transaction neeeds to be marked as an error based on the
+// transaction error code or failed op code so that TSS can determine whether it needs
+// to be retried.
+func (e *HorizonErrorWrapper) ShouldMarkAsError() bool {
+	if e.ResultCodes == nil {
+		return false
+	}
+
+	failedTxErrCodes := []string{
+		"tx_bad_auth",
+		"tx_bad_auth_extra",
+		"tx_insufficient_balance",
+	}
+	if slices.Contains(failedTxErrCodes, e.ResultCodes.TransactionCode) || slices.Contains(failedTxErrCodes, e.ResultCodes.InnerTransactionCode) {
+		return true
+	}
+
+	failedOpCodes := []string{
+		"op_bad_auth",
+		"op_underfunded",
+		"op_src_not_authorized",
+		"op_no_destination",
+		"op_no_trust",
+		"op_line_full",
+		"op_not_authorized",
+		"op_no_issuer",
+		"function_trapped",
+	}
+	for _, opResult := range e.ResultCodes.OperationCodes {
+		if slices.Contains(failedOpCodes, opResult) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (e *HorizonErrorWrapper) handleExtrasResultCodes(msgBuilder *strings.Builder) {
+	if !e.HasResultCodes() {
+		return
+	}
+
+	extras := []string{}
+	if e.ResultCodes.TransactionCode != "" {
+		extras = append(extras, fmt.Sprintf("transaction: %s", e.ResultCodes.TransactionCode))
+	}
+
+	if e.ResultCodes.InnerTransactionCode != "" {
+		extras = append(extras, fmt.Sprintf("inner transaction: %s", e.ResultCodes.InnerTransactionCode))
+	}
+
+	if len(e.ResultCodes.OperationCodes) > 0 {
+		msg := fmt.Sprintf("operation codes: [ %s ]", strings.Join(e.ResultCodes.OperationCodes, ", "))
+		extras = append(extras, msg)
+	}
+
+	if len(extras) > 0 {
+		msgBuilder.WriteString(", Extras=")
+		msgBuilder.WriteString(strings.Join(extras, " - "))
+	}
+}
+
+// IsRetryable returns true if the error should be retried
+func (e *HorizonErrorWrapper) IsRetryable() bool {
+	return !e.IsHorizonError() || !e.ShouldMarkAsError()
+}
+
+// ShouldReportToCrashTracker returns true if the error should be reported to crash tracker
+func (e *HorizonErrorWrapper) ShouldReportToCrashTracker() bool {
+	return e.ShouldMarkAsError() && !e.IsDestinationAccountNotReady()
+}
+
+// GetErrorType returns the error type identifier
+func (e *HorizonErrorWrapper) GetErrorType() string {
+	return "Horizon"
+}
+
+var (
+	_ error                = &HorizonErrorWrapper{}
+	_ TransactionError     = &HorizonErrorWrapper{}
+	_ HorizonSpecificError = &HorizonErrorWrapper{}
+)
+
+// RPCErrorWrapper wraps RPC simulation errors to provide consistent error handling
+//
+//nolint:errname // This is both an error and a wrapper
+type RPCErrorWrapper struct {
+	SimulationError *stellar.SimulationError
+	Err             error
+}
+
+func NewRPCErrorWrapper(err error) *RPCErrorWrapper {
+	if err == nil {
+		return nil
+	}
+
+	var existingWrapper *RPCErrorWrapper
+	if errors.As(err, &existingWrapper) {
+		return existingWrapper
+	}
+
+	var simErr *stellar.SimulationError
+	if errors.As(err, &simErr) {
+		return &RPCErrorWrapper{
+			SimulationError: simErr,
+			Err:             err,
+		}
+	}
+
+	return &RPCErrorWrapper{Err: err}
+}
+
+func (e *RPCErrorWrapper) Unwrap() error {
+	return e.Err
+}
+
+func (e *RPCErrorWrapper) Error() string {
+	if e.SimulationError != nil {
+		return fmt.Sprintf("rpc simulation error: %v", e.SimulationError)
+	}
+	return fmt.Sprintf("rpc error: %v", e.Err)
+}
+
+func (e *RPCErrorWrapper) IsRPCError() bool {
+	return e.SimulationError != nil
+}
+
+// IsRateLimit returns true if this is a rate limiting error (similar to Horizon)
+func (e *RPCErrorWrapper) IsRateLimit() bool {
+	if e.SimulationError == nil {
+		return false
+	}
+
+	if e.SimulationError.Type == stellar.SimulationErrorTypeNetwork {
+		msgLower := strings.ToLower(e.SimulationError.Error())
+		return sdpUtils.ContainsAny(msgLower, "rate limit", "too many requests", "throttle", "429")
+	}
+
+	return false
+}
+
+// IsGatewayTimeout returns true if this is a gateway timeout error (similar to Horizon)
+func (e *RPCErrorWrapper) IsGatewayTimeout() bool {
+	return e.SimulationError != nil && e.SimulationError.Type == stellar.SimulationErrorTypeNetwork
+}
+
+// ShouldMarkAsError determines whether a transaction needs to be marked as an error based on the
+// RPC error type so that TSS can determine whether it needs to be retried.
+func (e *RPCErrorWrapper) ShouldMarkAsError() bool {
+	if e.SimulationError == nil {
+		return false
+	}
+
+	switch e.SimulationError.Type {
+	case stellar.SimulationErrorTypeTransactionInvalid, stellar.SimulationErrorTypeAuth, stellar.SimulationErrorTypeContractExecution:
+		return true
+	default:
+		return false
+	}
+}
+
+// IsRetryable returns true if the error should be retried
+func (e *RPCErrorWrapper) IsRetryable() bool {
+	return !e.ShouldMarkAsError()
+}
+
+// ShouldReportToCrashTracker returns true if the error should be reported to crash tracker
+func (e *RPCErrorWrapper) ShouldReportToCrashTracker() bool {
+	return e.ShouldMarkAsError()
+}
+
+// GetErrorType returns the error type identifier
+func (e *RPCErrorWrapper) GetErrorType() string {
+	return "RPC"
+}
+
+var (
+	_ error            = &RPCErrorWrapper{}
+	_ TransactionError = &RPCErrorWrapper{}
+)

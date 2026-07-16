@@ -1,0 +1,35 @@
+version: '3.8'
+services:
+  db:
+    extends:
+      file: docker-compose-sdp.yml
+      service: db
+  sdp-api:
+    extends:
+      file: docker-compose-sdp.yml
+      service: sdp-api
+    depends_on:
+      db:
+        condition: service_started
+  sdp-tss:
+    extends:
+      file: docker-compose-tss.yml
+      service: sdp-tss
+    depends_on:
+      - db
+      - sdp-api
+  sdp-frontend:
+    extends:
+      file: docker-compose-frontend.yml
+      service: sdp-frontend
+    depends_on:
+      - db
+      - sdp-api
+  demo-wallet:
+    extends:
+      file: docker-compose-sdp.yml
+      service: demo-wallet
+volumes:
+  postgres-db:
+    name: ${COMPOSE_PROJECT_NAME}_postgres-db
+    driver: local

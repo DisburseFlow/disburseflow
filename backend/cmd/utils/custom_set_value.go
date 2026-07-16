@@ -1,0 +1,311 @@
+package utils
+
+import (
+	"fmt"
+	"net/url"
+	"strings"
+
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
+	"github.com/stellar/go-stellar-sdk/keypair"
+	"github.com/stellar/go-stellar-sdk/strkey"
+	"github.com/stellar/go-stellar-sdk/support/config"
+	"github.com/stellar/go-stellar-sdk/support/log"
+
+	"github.com/stellar/stellar-disbursement-platform-backend/internal/circle"
+	"github.com/stellar/stellar-disbursement-platform-backend/internal/crashtracker"
+	"github.com/stellar/stellar-disbursement-platform-backend/internal/data"
+	"github.com/stellar/stellar-disbursement-platform-backend/internal/message"
+	"github.com/stellar/stellar-disbursement-platform-backend/internal/monitor"
+	"github.com/stellar/stellar-disbursement-platform-backend/internal/serve/validators"
+	"github.com/stellar/stellar-disbursement-platform-backend/internal/utils"
+)
+
+func SetConfigOptionCircleAPIType(co *config.ConfigOption) error {
+	apiType := viper.GetString(co.Name)
+
+	circleAPIType, err := circle.ParseAPIType(apiType)
+	if err != nil {
+		return fmt.Errorf("couldn't parse circle API type in %s: %w", co.Name, err)
+	}
+
+	*(co.ConfigKey.(*circle.APIType)) = circleAPIType
+	return nil
+}
+
+func SetConfigOptionMessengerType(co *config.ConfigOption) error {
+	senderType := viper.GetString(co.Name)
+
+	messengerType, err := message.ParseMessengerType(senderType)
+	if err != nil {
+		return fmt.Errorf("couldn't parse messenger type in %s: %w", co.Name, err)
+	}
+
+	*(co.ConfigKey.(*message.MessengerType)) = messengerType
+	return nil
+}
+
+func SetConfigOptionMetricType(co *config.ConfigOption) error {
+	metricType := viper.GetString(co.Name)
+
+	metricTypeParsed, err := monitor.ParseMetricType(metricType)
+	if err != nil {
+		return fmt.Errorf("couldn't parse metric type in %s: %w", co.Name, err)
+	}
+
+	*(co.ConfigKey.(*monitor.MetricType)) = metricTypeParsed
+	return nil
+}
+
+func SetConfigOptionCrashTrackerType(co *config.ConfigOption) error {
+	ctType := viper.GetString(co.Name)
+
+	ctTypeParsed, err := crashtracker.ParseCrashTrackerType(ctType)
+	if err != nil {
+		return fmt.Errorf("couldn't parse crash tracker type in %s: %w", co.Name, err)
+	}
+
+	*(co.ConfigKey.(*crashtracker.CrashTrackerType)) = ctTypeParsed
+	return nil
+}
+
+func SetConfigOptionLogLevel(co *config.ConfigOption) error {
+	// parse string to logLevel object
+	logLevelStr := viper.GetString(co.Name)
+	logLevel, err := logrus.ParseLevel(logLevelStr)
+	if err != nil {
+		return fmt.Errorf("couldn't parse log level in %s: %w", co.Name, err)
+	}
+
+	// update the configKey
+	key, ok := co.ConfigKey.(*logrus.Level)
+	if !ok {
+		return fmt.Errorf("%s configKey has an invalid type %T", co.Name, co.ConfigKey)
+	}
+	*key = logLevel
+
+	// Log for debugging
+	if config.IsExplicitlySet(co) {
+		log.Debugf("Setting log level to: %q", logLevel)
+		log.DefaultLogger.SetLevel(*key)
+	} else {
+		log.Debugf("Using default log level: %q", logLevel)
+	}
+	return nil
+}
+
+// SetConfigOptionEC256PrivateKey parses the config option incoming value and validates if it is a valid EC256PrivateKey.
+func SetConfigOptionEC256PrivateKey(co *config.ConfigOption) error {
+	key, ok := co.ConfigKey.(*string)
+	if !ok {
+		return fmt.Errorf("not a valid EC256PrivateKey in %s: the expected type for this config key is a string, but got a %T instead", co.Name, co.ConfigKey)
+	}
+
+	privateKey := viper.GetString(co.Name)
+
+	// We must remove the literal \n in case of the config options being set this way
+	privateKey = strings.ReplaceAll(privateKey, `\n`, "\n")
+
+	_, err := utils.ParseStrongECPrivateKey(privateKey)
+	if err != nil {
+		return fmt.Errorf("parsing EC256PrivateKey in %s: %w", co.Name, err)
+	}
+
+	*key = privateKey
+	return nil
+}
+
+func SetCorsAllowedOrigins(co *config.ConfigOption) error {
+	corsAllowedOriginsOptions := viper.GetString(co.Name)
+
+	if corsAllowedOriginsOptions == "" {
+		return fmt.Errorf("cors allowed addresses cannot be empty in %s", co.Name)
+	}
+
+	corsAllowedOrigins := strings.Split(corsAllowedOriginsOptions, ",")
+
+	// validate addresses
+	for _, address := range corsAllowedOrigins {
+		_, err := url.ParseRequestURI(address)
+		if err != nil {
+			return fmt.Errorf("error parsing cors addresses in %s: %w", co.Name, err)
+		}
+		if address == "*" {
+			log.Warn(`The value "*" for the CORS Allowed Origins is too permissive and not recommended.`)
+		}
+	}
+
+	key, ok := co.ConfigKey.(*[]string)
+	if !ok {
+		return fmt.Errorf("the expected type for the config key in %s is a string slice, but a %T was provided instead", co.Name, co.ConfigKey)
+	}
+	*key = corsAllowedOrigins
+
+	return nil
+}
+
+func SetConfigOptionStellarPublicKey(co *config.ConfigOption) error {
+	publicKey := viper.GetString(co.Name)
+
+	kp, err := keypair.ParseAddress(publicKey)
+	if err != nil {
+		return fmt.Errorf("error validating public key in %s: %w", co.Name, err)
+	}
+
+	key, ok := co.ConfigKey.(*string)
+	if !ok {
+		return fmt.Errorf("the expected type for the config key in %s is a string, but a %T was provided instead", co.Name, co.ConfigKey)
+	}
+	*key = kp.Address()
+
+	return nil
+}
+
+func SetConfigOptionStellarPrivateKey(co *config.ConfigOption) error {
+	privateKey := viper.GetString(co.Name)
+	if privateKey == "" {
+		return nil
+	}
+
+	isValid := strkey.IsValidEd25519SecretSeed(privateKey)
+	if !isValid {
+		return fmt.Errorf("error validating private key in %s: %q", co.Name, utils.TruncateString(privateKey, 2))
+	}
+
+	key, ok := co.ConfigKey.(*string)
+	if !ok {
+		return fmt.Errorf("the expected type for the config key in %s is a string, but a %T was provided instead", co.Name, co.ConfigKey)
+	}
+	*key = privateKey
+
+	return nil
+}
+
+func SetConfigOptionStellarContractID(co *config.ConfigOption) error {
+	contractID := viper.GetString(co.Name)
+	contractID = strings.TrimSpace(contractID)
+
+	if !co.Required && contractID == "" {
+		return nil
+	}
+
+	if contractID == "" {
+		return fmt.Errorf("contract id cannot be empty in %s", co.Name)
+	}
+
+	isValid := strkey.IsValidContractAddress(contractID)
+	if !isValid {
+		return fmt.Errorf("validating contract id in %s: %q", co.Name, contractID)
+	}
+
+	key, ok := co.ConfigKey.(*string)
+	if !ok {
+		return fmt.Errorf("the expected type for the config key in %s is a string, but a %T was provided instead", co.Name, co.ConfigKey)
+	}
+	*key = contractID
+
+	return nil
+}
+
+func SetConfigOptionURLString(co *config.ConfigOption) error {
+	urlStr := viper.GetString(co.Name)
+	urlStr = strings.TrimSpace(urlStr)
+
+	if !co.Required && urlStr == "" {
+		return nil
+	}
+
+	if urlStr == "" {
+		return fmt.Errorf("URL cannot be empty in %s", co.Name)
+	}
+
+	_, err := url.ParseRequestURI(urlStr)
+	if err != nil {
+		return fmt.Errorf("parsing URL in %s: %w", co.Name, err)
+	}
+
+	key, ok := co.ConfigKey.(*string)
+	if !ok {
+		return fmt.Errorf("the expected type for the config key in %s is a string, but a %T was provided instead", co.Name, co.ConfigKey)
+	}
+	*key = urlStr
+
+	return nil
+}
+
+func SetConfigOptionURLList(co *config.ConfigOption) error {
+	urlsStr := viper.GetString(co.Name)
+	urlsStr = strings.TrimSpace(urlsStr)
+
+	key, ok := co.ConfigKey.(*[]string)
+	if !ok {
+		return fmt.Errorf("the expected type for the config key in %s is a string slice, but a %T was provided instead", co.Name, co.ConfigKey)
+	}
+
+	if urlsStr == "" {
+		if co.Required {
+			return fmt.Errorf("URL list cannot be empty in %s", co.Name)
+		}
+		*key = make([]string, 0)
+		return nil
+	}
+
+	urls := strings.Split(urlsStr, ",")
+	for _, u := range urls {
+		_, err := url.ParseRequestURI(strings.TrimSpace(u))
+		if err != nil {
+			return fmt.Errorf("error parsing URL in %s: %w", co.Name, err)
+		}
+	}
+
+	*key = urls
+
+	return nil
+}
+
+func SetConfigOptionStringList(co *config.ConfigOption) error {
+	listStr := viper.GetString(co.Name)
+
+	if listStr == "" {
+		return fmt.Errorf("string list cannot be empty in %s", co.Name)
+	}
+
+	list := strings.Split(listStr, ",")
+	for i, el := range list {
+		list[i] = strings.TrimSpace(el)
+	}
+
+	key, ok := co.ConfigKey.(*[]string)
+	if !ok {
+		return fmt.Errorf("the expected type for the config key in %s is a string slice, but a %T was provided instead", co.Name, co.ConfigKey)
+	}
+
+	*key = list
+
+	return nil
+}
+
+func SetRegistrationContactType(co *config.ConfigOption) error {
+	regAccountTypeStr := viper.GetString(co.Name)
+	regAccountType := data.RegistrationContactType{}
+
+	err := regAccountType.ParseFromString(regAccountTypeStr)
+	if err != nil {
+		return fmt.Errorf("couldn't parse registration contact type in %s: %w", co.Name, err)
+	}
+
+	*(co.ConfigKey.(*data.RegistrationContactType)) = regAccountType
+	return nil
+}
+
+func SetConfigOptionCAPTCHAType(co *config.ConfigOption) error {
+	captchaTypeStr := viper.GetString(co.Name)
+
+	captchaType := validators.CAPTCHAType(captchaTypeStr)
+	if !captchaType.IsValid() {
+		return fmt.Errorf("couldn't parse CAPTCHA type in %s: %s is not a valid CAPTCHA type. Valid options are: %v", co.Name, captchaTypeStr, validators.ValidCAPTCHATypes())
+	}
+
+	*(co.ConfigKey.(*validators.CAPTCHAType)) = captchaType
+	return nil
+}

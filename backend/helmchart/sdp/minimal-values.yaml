@@ -1,0 +1,50 @@
+## Values for running the SDP locally. This is a good starting point for local development.
+## Refer to README.md and values.yaml for more information about the configuration options.
+
+# =========================== START global ========================
+global:
+  ## global.ephemeralDatabase Enables the creation of an ephemeral database for testing purposes.
+  ephemeralDatabase: true
+  ## @param global.autoGenerateSecrets Determines if secrets should be auto-generated.
+  autoGenerateSecrets: true
+  ## global.singleTenantMode Determines if the SDP service is running in single-tenant mode.
+  singleTenantMode: true
+  ## global.rpc.url Shared RPC URL for SDP/TSS/dashboard.
+  rpc:
+    url: "https://soroban-testnet.stellar.org"
+
+# =========================== START sdp ===========================
+sdp:
+  route:
+    schema: "http"
+    domain: "sdp.local"
+    adminDomain: "admin.local"
+  ## Disable the TLS for the SDP ingress
+  ingress:
+    tls: []
+  ## Generate secrets for the SDP
+  kubeSecrets:
+    secretName: sdp
+    create: true
+  ## Using edge for development. It is recommended to use a fixed version for production.
+  image:
+    tag: "edge"
+
+# =========================== START TSS ===========================
+tss:
+  ## Generate secrets for the TSS
+  kubeSecrets:
+    secretName: sdp-tss
+    create: true
+
+# =========================== START Dashboard =====================
+dashboard:
+  route:
+    schema: "http"
+    domain: "dashboard.local"
+  ## Using edge for development. It is recommended to use a fixed version for production.
+  image:
+    fullName: stellar/stellar-disbursement-platform-frontend:edge
+  ## Disable the TLS for the Dashboard ingress
+  ingress:
+    tls: []

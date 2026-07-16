@@ -1,0 +1,41 @@
+{{- if .Values.tss.enabled -}}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sdp.fullname" . }}-tss
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "sdp.labelsWithSuffix" (list . "-tss") | nindent 4 }}
+
+  {{- if .Values.tss.configMap.annotations }}
+  annotations:
+    {{- toYaml .Values.tss.configMap.annotations | nindent 4 }}
+  {{- end }}
+
+data:
+  {{- if eq (include "isPubnet" .) "true" }}
+  NETWORK_PASSPHRASE: "Public Global Stellar Network ; September 2015"
+  HORIZON_URL: "https://horizon.stellar.org"
+  {{- else }}
+  NETWORK_PASSPHRASE: "Test SDF Network ; September 2015"
+  HORIZON_URL: "https://horizon-testnet.stellar.org"
+  {{- end }}
+  TSS_METRICS_PORT: {{ include "tss.metricsPort" . | quote }}
+  {{- with .Values.global }}
+  {{- if and .rpc (index .rpc "requestAuthHeaderKey") }}
+  RPC_REQUEST_AUTH_HEADER_KEY: {{ .rpc.requestAuthHeaderKey | quote }}
+  {{- end }}
+  {{- if .distributionPublicKey }}
+  DISTRIBUTION_PUBLIC_KEY: {{ .distributionPublicKey | quote }}
+  {{- end }}
+  {{- if and .rpc (index .rpc "url") }}
+  RPC_URL: {{ .rpc.url | quote }}
+  {{- end }}
+  {{- end }}
+  {{- /*
+  {{- /*
+Values from the tss configmap section - These will override the global values
+  */}}
+  {{- tpl (toYaml .Values.tss.configMap.data | nindent 2) . }}
+{{- end }}

@@ -1,0 +1,97 @@
+//nolint:wrapcheck // Wrapper struct, no extra context needed
+package message
+
+import (
+	"context"
+	"fmt"
+	"strconv"
+	"strings"
+
+	"github.com/stellar/go-stellar-sdk/support/log"
+	"github.com/twilio/twilio-go"
+	twilioApi "github.com/twilio/twilio-go/rest/api/v2010"
+
+	"github.com/stellar/stellar-disbursement-platform-backend/internal/utils"
+)
+
+//go:generate mockery --name=twilioAPIInterface --structname=mockTwilioAPIInterface --filename=mock_twilio_api_interface.go --inpackage --with-expecter
+type twilioAPIInterface interface {
+	CreateMessage(params *twilioApi.CreateMessageParams) (*twilioApi.ApiV2010Message, error)
+}
+
+type twilioClient struct {
+	apiService twilioAPIInterface
+	senderID   string
+}
+
+func (t *twilioClient) MessengerType() MessengerType {
+	return MessengerTypeTwilioSMS
+}
+
+func (t *twilioClient) CreateMessage(params *twilioApi.CreateMessageParams) (*twilioApi.ApiV2010Message, error) {
+	return t.apiService.CreateMessage(params)
+}
+
+func (t *twilioClient) SendMessage(_ context.Context, message Message) error {
+	err := message.ValidateFor(t.MessengerType())
+	if err != nil {
+		return fmt.Errorf("validating SMS message: %w", err)
+	}
+
+	resp, err := t.CreateMessage(&twilioApi.CreateMessageParams{
+		To:                  &message.ToPhoneNumber,
+		Body:                &message.Body,
+		MessagingServiceSid: &t.senderID,
+	})
+	if err != nil {
+		return fmt.Errorf("sending Twilio SMS: %w", err)
+	}
+
+	if resp.ErrorCode != nil || resp.ErrorMessage != nil {
+		return parseTwilioErr(resp)
+	}
+
+	log.Debugf("Twilio sent an SMS to the phoneNumber %q", utils.TruncateString(message.ToPhoneNumber, 3))
+	return nil
+}
+
+func parseTwilioErr(resp *twilioApi.ApiV2010Message) error {
+	var errorCode string
+	if resp.ErrorCode != nil {
+		errorCode = strconv.Itoa(*resp.ErrorCode)
+	}
+
+	var errorMessage string
+	if resp.ErrorMessage != nil {
+		errorMessage = *resp.ErrorMessage
+	}
+
+	return fmt.Errorf("sending Twilio message returned an error {code= %q, message= %q}", errorCode, errorMessage)
+}
+
+func NewTwilioClient(accountSid, authToken, senderID string) (*twilioClient, error) {
+	accountSid = strings.TrimSpace(accountSid)
+	if accountSid == "" {
+		return nil, fmt.Errorf("twilio accountSid is empty")
+	}
+
+	authToken = strings.TrimSpace(authToken)
+	if authToken == "" {
+		return nil, fmt.Errorf("twilio authToken is empty")
+	}
+
+	senderID = strings.TrimSpace(senderID)
+	if senderID == "" {
+		return nil, fmt.Errorf("twilio senderID is empty")
+	}
+
+	return &twilioClient{
+		apiService: twilio.NewRestClientWithParams(twilio.ClientParams{
+			Username: accountSid,
+			Password: authToken,
+		}).Api,
+		senderID: senderID,
+	}, nil
+}
+
+var _ MessengerClient = (*twilioClient)(nil)
