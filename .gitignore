@@ -12,6 +12,7 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+.nvmrc
 
 # ---- Backend (Go) ----
 *.exe
@@ -38,4 +39,4 @@ yarn-debug.log*
 yarn-error.log*
 /public/settings/env-config.js
 /src/generated/gitInfo.ts
-/certs/
+certs/
