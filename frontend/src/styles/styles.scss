@@ -1,16 +1,229 @@
 @use "./styles-utils.scss" as *;
 
+// ============================================================
+// SAP Earth-Tone Design System — CSS Custom Properties
+// ============================================================
+:root {
+  // Color palette (from sap.html Tailwind config)
+  --sdp-primary:                  #97430e;
+  --sdp-primary-container:        #b75a26;
+  --sdp-primary-fixed:            #ffdbcb;
+  --sdp-primary-fixed-dim:        #ffb692;
+  --sdp-on-primary:               #ffffff;
+  --sdp-on-primary-container:     #fffbff;
+  --sdp-on-primary-fixed:         #341100;
+  --sdp-on-primary-fixed-variant: #793000;
+  --sdp-inverse-primary:          #ffb692;
+
+  --sdp-secondary:                #45664b;
+  --sdp-secondary-container:      #c4e9c7;
+  --sdp-secondary-fixed:          #c7ecca;
+  --sdp-secondary-fixed-dim:      #abd0af;
+  --sdp-on-secondary:             #ffffff;
+  --sdp-on-secondary-container:   #4a6a4f;
+  --sdp-on-secondary-fixed:       #02210c;
+  --sdp-on-secondary-fixed-variant: #2e4e35;
+
+  --sdp-tertiary:                 #1d6281;
+  --sdp-tertiary-container:       #3c7b9b;
+  --sdp-tertiary-fixed:           #c3e8ff;
+  --sdp-tertiary-fixed-dim:       #92cef1;
+  --sdp-on-tertiary:              #ffffff;
+  --sdp-on-tertiary-container:    #fbfcff;
+  --sdp-on-tertiary-fixed:        #001e2c;
+  --sdp-on-tertiary-fixed-variant:#004c68;
+
+  --sdp-background:               #fff8f2;
+  --sdp-surface:                  #fff8f2;
+  --sdp-surface-bright:           #fff8f2;
+  --sdp-surface-dim:              #e3d9c9;
+  --sdp-surface-variant:          #ece1d1;
+  --sdp-surface-tint:             #9b4511;
+  --sdp-surface-container-lowest: #ffffff;
+  --sdp-surface-container-low:    #fdf2e2;
+  --sdp-surface-container:        #f8ecdc;
+  --sdp-surface-container-high:   #f2e7d7;
+  --sdp-surface-container-highest:#ece1d1;
+
+  --sdp-on-background:            #201b11;
+  --sdp-on-surface:               #201b11;
+  --sdp-on-surface-variant:       #55433a;
+  --sdp-inverse-surface:          #353025;
+  --sdp-inverse-on-surface:       #faefdf;
+
+  --sdp-outline:                  #897268;
+  --sdp-outline-variant:          #dcc1b5;
+
+  --sdp-error:                    #ba1a1a;
+  --sdp-error-container:          #ffdad6;
+  --sdp-on-error:                 #ffffff;
+  --sdp-on-error-container:       #93000a;
+
+  // Typography
+  --sdp-ff-base:     'Be Vietnam Pro', system-ui, sans-serif;
+  --sdp-ff-mono:     'Inconsolata', monospace;
+
+  // Shadows
+  --sdp-shadow-sm:   0 1px 2px rgba(32, 27, 17, 0.06);
+  --sdp-shadow-md:   0 4px 8px rgba(32, 27, 17, 0.10);
+
+  // Sidebar width
+  --sdp-sidebar-width: 256px;
+  --sdp-header-height: 80px;
+}
+
+// ============================================================
+// Global Base Overrides
+// ============================================================
+html, body {
+  font-family: var(--sdp-ff-base) !important;
+  background-color: var(--sdp-background) !important;
+  color: var(--sdp-on-surface) !important;
+}
+
 body {
-  font-family: var(--sds-ff-base);
   font-size: pxToRem(14px);
   overflow-y: hidden;
+}
+
+// Override SDS theme backgrounds
+.sds-theme-light,
+.sds-theme-dark {
+  background-color: var(--sdp-background) !important;
+  font-family: var(--sdp-ff-base) !important;
+}
+
+// Override SDS font family globally
+#root {
+  font-family: var(--sdp-ff-base);
+  background-color: var(--sdp-background);
+
+  // Override SDS gap tokens (keep these)
+  --sds-window-width-min: 1200px;
+  --sds-window-height-min: auto;
+  --sds-gap-xs: #{pxToRem(4px)};
+  --sds-gap-sm: #{pxToRem(8px)};
+  --sds-gap-md: #{pxToRem(12px)};
+  --sds-gap-lg: #{pxToRem(16px)};
+  --sds-gap-xl: #{pxToRem(24px)};
+  --sds-gap-xxl: #{pxToRem(32px)};
+
+  // Override SDS color tokens to match earth palette
+  --sds-clr-gray-01: var(--sdp-surface-container-lowest);
+  --sds-clr-gray-02: var(--sdp-surface-container-low);
+  --sds-clr-gray-03: var(--sdp-surface-container);
+  --sds-clr-gray-04: var(--sdp-surface-container-high);
+  --sds-clr-gray-05: var(--sdp-outline-variant);
+  --sds-clr-gray-06: var(--sdp-outline-variant);
+  --sds-clr-gray-08: var(--sdp-outline);
+  --sds-clr-gray-09: var(--sdp-on-surface-variant);
+  --sds-clr-gray-10: var(--sdp-on-surface-variant);
+  --sds-clr-gray-11: var(--sdp-on-surface);
+  --sds-clr-gray-12: var(--sdp-on-surface);
+
+  // Fix Card width/height (SDS override)
+  .Card {
+    width: auto;
+    height: auto;
+  }
+
+  .Heading {
+    margin-top: 0;
+    margin-bottom: 0;
+    font-family: var(--sdp-ff-base);
+  }
+
+  // Tooltip fix
+  .Tooltip ul {
+    font-size: inherit;
+    line-height: inherit;
+    color: currentColor;
+    list-style-type: disc;
+    margin-left: pxToRem(8px);
+  }
+
+  .Notification__message ul {
+    font-size: pxToRem(14px);
+    line-height: pxToRem(22px);
+    color: var(--sdp-on-surface-variant);
+    list-style-type: disc;
+  }
+
+  .Input__side-element .PasswordMaskButton {
+    width: pxToRem(22px);
+    height: pxToRem(22px);
+    background: none;
+    border: none;
+    cursor: pointer;
+
+    svg {
+      display: block;
+      stroke: var(--sdp-on-surface-variant);
+    }
+  }
+
+  .Toggle__wrapper {
+    display: flex;
+    align-items: center;
+    gap: pxToRem(4px);
+
+    .Loader {
+      --Loader-color: var(--sdp-outline);
+    }
+  }
+
+  .Floater__content {
+    background-color: var(--sdp-surface-container-lowest);
+    border-color: var(--sdp-outline-variant);
+  }
+
+  .Modal__content .ModalBody {
+    padding-left: pxToRem(4px);
+    margin-right: pxToRem(-4px);
+  }
+
+  // SDS Button overrides — primary button uses earth primary
+  .Button--primary {
+    background-color: var(--sdp-primary) !important;
+    border-color: var(--sdp-primary) !important;
+    color: var(--sdp-on-primary) !important;
+    font-family: var(--sdp-ff-base);
+    font-weight: 600;
+
+    &:hover { background-color: var(--sdp-primary-container) !important; }
+  }
+
+  .Button--secondary {
+    border-color: var(--sdp-outline-variant) !important;
+    color: var(--sdp-primary) !important;
+    font-family: var(--sdp-ff-base);
+  }
+
+  // SDS Input overrides
+  .Input input, .Select select, .Textarea textarea {
+    font-family: var(--sdp-ff-base);
+    background-color: var(--sdp-surface-container-low) !important;
+    border-color: var(--sdp-outline-variant) !important;
+    color: var(--sdp-on-surface) !important;
+
+    &:focus {
+      border-color: var(--sdp-primary) !important;
+      box-shadow: 0 0 0 2px rgba(151, 67, 14, 0.15) !important;
+    }
+  }
+
+  .Label {
+    font-family: var(--sdp-ff-base);
+    color: var(--sdp-on-surface-variant);
+    font-weight: 500;
+  }
 }
 
 // Container
 .Container {
   // Sidebar
   &__sidebar {
-    width: pxToRem(242px);
+    width: var(--sdp-sidebar-width);
     flex-shrink: 0;
     flex-grow: 0;
   }
@@ -32,7 +245,7 @@ body {
   gap: pxToRem(12px);
 
   .Heading {
-    color: var(--sds-clr-gray-12);
+    color: var(--sdp-on-surface);
   }
 
   &__heading {
@@ -43,7 +256,7 @@ body {
 
   .Note {
     margin-top: 0;
-    color: var(--sds-clr-gray-11);
+    color: var(--sdp-on-surface-variant);
 
     ul {
       font-size: inherit;
@@ -54,18 +267,19 @@ body {
     }
 
     .CodeSnippet {
-      font-family: var(--sds-ff-monospace);
+      font-family: var(--sdp-ff-mono);
     }
   }
 
   form {
-    background-color: var(--sds-clr-gray-01);
-    border: 1px solid var(--sds-clr-gray-04);
-    border-radius: pxToRem(8px);
+    background-color: var(--sdp-surface-container-lowest);
+    border: 1px solid var(--sdp-outline-variant);
+    border-radius: pxToRem(12px);
     padding: pxToRem(32px);
     display: flex;
     flex-direction: column;
     gap: pxToRem(24px);
+    box-shadow: var(--sdp-shadow-sm);
 
     .Link {
       align-self: center;
@@ -78,15 +292,15 @@ body {
 .Note {
   font-size: pxToRem(14px);
   line-height: pxToRem(22px);
-  color: var(--sds-clr-gray-09);
+  color: var(--sdp-on-surface-variant);
   margin-top: pxToRem(8px);
 
   &--error {
-    color: var(--sds-clr-red-09);
+    color: var(--sdp-error);
   }
 
   &--success {
-    color: var(--sds-clr-green-09);
+    color: var(--sdp-secondary);
   }
 
   &--small {
@@ -103,7 +317,7 @@ body {
     font-size: pxToRem(12px);
     line-height: pxToRem(18px);
     font-weight: 500;
-    color: var(--sds-clr-gray-10);
+    color: var(--sdp-on-surface-variant);
     letter-spacing: 0.01em;
   }
 }
@@ -113,19 +327,19 @@ body {
   font-size: pxToRem(12px);
   line-height: pxToRem(18px);
   font-weight: 500;
-  color: var(--sds-clr-gray-10);
+  color: var(--sdp-on-surface-variant);
   letter-spacing: 0.01em;
 }
 
 .Table-v2__cell--secondary {
-  color: var(--sds-clr-gray-09);
+  color: var(--sdp-on-surface-variant);
 }
 
 .Table__emptyState {
-  background-color: var(--sds-clr-gray-02);
+  background-color: var(--sdp-surface-container-low);
   border-bottom-left-radius: pxToRem(8px);
   border-bottom-right-radius: pxToRem(8px);
-  color: var(--sds-clr-gray-10) !important;
+  color: var(--sdp-on-surface-variant) !important;
 }
 
 .FiltersWithSearch {
@@ -168,6 +382,16 @@ body {
 
   &__card {
     --StatCard-grid-columns: 2;
+    background-color: var(--sdp-surface-container-lowest);
+    border: 1px solid var(--sdp-outline-variant);
+    border-radius: pxToRem(12px);
+    box-shadow: var(--sdp-shadow-sm);
+    overflow: hidden;
+    transition: box-shadow 200ms;
+
+    &:hover {
+      box-shadow: var(--sdp-shadow-md);
+    }
 
     &--grid {
       display: grid;
@@ -207,31 +431,37 @@ body {
     }
 
     &__title {
-      font-size: pxToRem(14px);
-      line-height: pxToRem(22px);
-      font-weight: var(--sds-fw-medium);
+      font-family: var(--sdp-ff-base);
+      font-size: pxToRem(12px);
+      line-height: pxToRem(16px);
+      font-weight: 500;
+      color: var(--sdp-on-surface-variant);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
 
     &__unit {
-      font-size: pxToRem(18px);
-      line-height: pxToRem(26px);
-      font-weight: var(--sds-fw-regular);
+      font-family: var(--sdp-ff-base);
+      font-size: pxToRem(32px);
+      line-height: pxToRem(40px);
+      font-weight: 600;
+      color: var(--sdp-primary);
       margin-top: pxToRem(8px);
     }
 
     & {
-      --StatCard-template-rows: 3; // Wrap the custom property in `& {}`
+      --StatCard-template-rows: 3;
     }
 
     &__column {
       display: grid;
       grid-template-rows: repeat(var(--StatCard-template-rows), 1fr);
-      // Adjusting for even padding all around
       margin-top: pxToRem(-8px);
       margin-bottom: pxToRem(-8px);
     }
 
     &__item {
+      font-family: var(--sdp-ff-base);
       font-size: pxToRem(14px);
       line-height: pxToRem(22px);
 
@@ -252,20 +482,20 @@ body {
         }
 
         &:not(:last-child) {
-          border-bottom: 1px solid var(--sds-clr-gray-04);
+          border-bottom: 1px solid var(--sdp-outline-variant);
         }
       }
 
       &__label {
-        font-weight: var(--sds-fw-medium);
-        color: var(--sds-clr-gray-09);
+        font-weight: 500;
+        color: var(--sdp-on-surface-variant);
         display: block;
         margin-bottom: pxToRem(4px);
       }
 
       &__value {
-        font-weight: var(--sds-fw-regular);
-        color: var(--sds-clr-gray-12);
+        font-weight: 400;
+        color: var(--sdp-on-surface);
       }
     }
 
@@ -273,7 +503,7 @@ body {
       margin-top: pxToRem(8px);
       font-size: pxToRem(14px);
       line-height: pxToRem(22px);
-      color: var(--sds-clr-gray-12);
+      color: var(--sdp-on-surface);
 
       .StatCards__card--flexCols {
         &:not(:last-child) {
@@ -282,7 +512,7 @@ body {
       }
 
       .AssetAmount__code {
-        color: var(--sds-clr-gray-09);
+        color: var(--sdp-on-surface-variant);
       }
 
       .AssetAmount__icon {
@@ -293,7 +523,7 @@ body {
     }
 
     &__walletCounts {
-      border-top: 1px solid var(--sds-clr-gray-04);
+      border-top: 1px solid var(--sdp-outline-variant);
       padding-bottom: pxToRem(2px);
       padding-top: pxToRem(2px);
 
@@ -383,10 +613,10 @@ body {
   }
 
   h4 {
-    color: var(--sds-clr-gray-10);
+    color: var(--sdp-on-surface-variant);
     font-size: pxToRem(14px);
     line-height: pxToRem(22px);
-    font-weight: var(--sds-fw-medium);
+    font-weight: 500;
     margin-bottom: pxToRem(-12px) !important;
   }
 }
@@ -475,14 +705,14 @@ body {
   gap: pxToRem(8px);
 
   .Title {
-    color: var(--sds-clr-gray-10);
+    color: var(--sdp-on-surface-variant);
   }
 
   .AssetAmount {
     font-size: pxToRem(14px);
     line-height: pxToRem(22px);
-    font-weight: var(--sds-fw-medium);
-    color: var(--sds-clr-gray-11);
+    font-weight: 500;
+    color: var(--sdp-on-surface);
 
     &__icon {
       order: -1;
@@ -504,13 +734,19 @@ body {
     display: flex;
     flex-direction: column;
     gap: pxToRem(16px);
+    background-color: var(--sdp-surface-container-lowest);
+    border: 1px solid var(--sdp-outline-variant);
+    border-radius: pxToRem(12px);
+    padding: pxToRem(24px);
+    box-shadow: var(--sdp-shadow-sm);
   }
 
   &__title {
+    font-family: var(--sdp-ff-base);
     font-size: pxToRem(16px);
     line-height: pxToRem(24px);
-    font-weight: var(--sds-fw-medium);
-    color: var(--sds-clr-gray-12);
+    font-weight: 600;
+    color: var(--sdp-on-surface);
 
     display: flex;
     align-items: center;
@@ -553,7 +789,7 @@ body {
       display: block;
       width: 100%;
       height: 100%;
-      stroke: var(--sds-clr-gray-12);
+      stroke: var(--sdp-on-surface);
     }
   }
 
@@ -564,10 +800,11 @@ body {
     }
 
     &__value {
+      font-family: var(--sdp-ff-base);
       font-size: pxToRem(14px);
       line-height: pxToRem(22px);
-      font-weight: var(--sds-fw-regular);
-      color: var(--sds-clr-gray-12);
+      font-weight: 400;
+      color: var(--sdp-on-surface);
     }
   }
 
@@ -581,7 +818,7 @@ body {
 
       align-items: center;
       justify-content: space-between;
-      transition: background-color var(--sds-anim-transition-default);
+      transition: background-color 200ms;
     }
 
     .FileUpload__info {
@@ -590,8 +827,8 @@ body {
       gap: pxToRem(12px);
       font-size: pxToRem(12px);
       line-height: pxToRem(20px);
-      font-weight: var(--sds-fw-regular);
-      color: var(--sds-clr-gray-09);
+      font-weight: 400;
+      color: var(--sdp-on-surface-variant);
       order: -1;
       max-width: 60%;
     }
@@ -625,8 +862,8 @@ body {
     grid-column: 1 / -1;
     font-size: pxToRem(12px);
     line-height: pxToRem(20px);
-    font-weight: var(--sds-fw-medium);
-    color: var(--sds-clr-gray-10);
+    font-weight: 500;
+    color: var(--sdp-on-surface-variant);
     display: flex;
     align-items: flex-start;
     gap: pxToRem(8px);
@@ -663,6 +900,7 @@ body {
 
   &__label {
     font-size: pxToRem(14px);
+    color: var(--sdp-on-surface);
   }
 
   &__form {
@@ -701,10 +939,10 @@ body {
   }
 
   .Banner .Link {
-    --Link-color-default: var(--sds-clr-amber-11);
-    --Link-color-hover: var(--sds-clr-amber-12);
-    --Link-color-disabled: var(--sds-clr-amber-08);
-    font-weight: var(--sds-fw-semi-bold);
+    --Link-color-default: var(--sdp-secondary);
+    --Link-color-hover: var(--sdp-on-secondary-container);
+    --Link-color-disabled: var(--sdp-outline);
+    font-weight: 600;
   }
 }
 
@@ -712,10 +950,10 @@ body {
   padding: pxToRem(16px);
 
   &__title {
-    color: var(--sds-clr-gray-10);
+    color: var(--sdp-on-surface-variant);
     font-size: pxToRem(12px);
     line-height: pxToRem(18px);
-    font-weight: var(--sds-fw-medium);
+    font-weight: 500;
   }
 }
 
@@ -731,7 +969,7 @@ body {
   }
 
   p {
-    color: var(--sds-clr-gray-10);
+    color: var(--sdp-on-surface-variant);
     font-size: pxToRem(14px);
     line-height: pxToRem(22px);
     margin-bottom: pxToRem(32px) !important;
@@ -747,13 +985,13 @@ body {
   }
 
   &__message {
-    color: var(--sds-clr-gray-12);
+    color: var(--sdp-on-surface);
   }
 
   .Link {
-    --Link-color-default: var(--sds-clr-red-11);
-    --Link-color-hover: var(--sds-clr-red-12);
-    --Link-color-disabled: var(--sds-clr-red-08);
+    --Link-color-default: var(--sdp-error);
+    --Link-color-hover: var(--sdp-on-error-container);
+    --Link-color-disabled: var(--sdp-outline);
   }
 }
 
@@ -764,27 +1002,27 @@ body {
     border-radius: pxToRem(4px);
     font-size: pxToRem(12px);
     line-height: pxToRem(18px);
-    font-weight: var(--sds-fw-semi-bold);
+    font-weight: 600;
     cursor: pointer;
     transition:
-      color var(--sds-anim-transition-default),
-      background-color var(--sds-anim-transition-default);
+      color 200ms,
+      background-color 200ms;
 
     &[data-selected="false"] {
-      color: var(--sds-clr-gray-11);
-      background-color: var(--sds-clr-gray-01);
+      color: var(--sdp-on-surface-variant);
+      background-color: var(--sdp-surface-container-low);
     }
 
     &[data-selected="true"] {
-      color: var(--sds-clr-lilac-11);
-      background-color: var(--sds-clr-lilac-04);
+      color: var(--sdp-primary);
+      background-color: var(--sdp-primary-fixed);
       cursor: default;
     }
 
     @media (hover: hover) {
       &:hover {
-        color: var(--sds-clr-lilac-11);
-        background-color: var(--sds-clr-lilac-04);
+        color: var(--sdp-primary);
+        background-color: var(--sdp-primary-fixed);
       }
     }
   }
@@ -803,14 +1041,14 @@ body {
     gap: pxToRem(4px);
     padding: pxToRem(14px);
     border-radius: pxToRem(8px);
-    border: 1px solid var(--sds-clr-gray-06);
-    background-color: var(--sds-clr-gray-01);
+    border: 1px solid var(--sdp-outline-variant);
+    background-color: var(--sdp-surface-container-lowest);
     cursor: pointer;
-    transition: border-color var(--sds-anim-transition-default);
+    transition: border-color 200ms;
     text-align: center;
 
     &[data-selected="true"] {
-      border-color: var(--sds-clr-lilac-09);
+      border-color: var(--sdp-primary);
       cursor: default;
     }
 
@@ -821,27 +1059,27 @@ body {
       width: pxToRem(24px);
       height: pxToRem(24px);
       border-radius: 50%;
-      border: 1px solid var(--sds-clr-gray-06);
+      border: 1px solid var(--sdp-outline-variant);
       overflow: hidden;
 
       &::before {
         display: block;
         content: attr(data-letter);
         font-size: pxToRem(12px);
-        font-weight: var(--sds-fw-semi-bold);
-        color: var(--sds-clr-gray-11);
+        font-weight: 600;
+        color: var(--sdp-on-surface-variant);
       }
     }
 
     @media (hover: hover) {
       &:hover {
-        border-color: var(--sds-clr-lilac-09);
+        border-color: var(--sdp-primary);
       }
     }
   }
 
   .Label {
-    color: var(--sds-clr-gray-12);
+    color: var(--sdp-on-surface);
   }
 
   // Assets
@@ -854,8 +1092,8 @@ body {
       top: pxToRem(62px);
       left: 0;
       right: 0;
-      background-color: var(--sds-clr-gray-01);
-      border: 1px solid var(--sds-clr-gray-06);
+      background-color: var(--sdp-surface-container-lowest);
+      border: 1px solid var(--sdp-outline-variant);
       border-radius: pxToRem(6px);
       overflow: hidden;
     }
@@ -868,7 +1106,7 @@ body {
       cursor: pointer;
 
       &:not(:last-child) {
-        border-bottom: 1px solid var(--sds-clr-gray-06);
+        border-bottom: 1px solid var(--sdp-outline-variant);
       }
     }
   }
@@ -879,11 +1117,11 @@ body {
     display: flex;
     width: var(--WalletProvidersNew-assetImage-size);
     height: var(--WalletProvidersNew-assetImage-size);
-    border: 1px solid var(--sds-clr-gray-06);
+    border: 1px solid var(--sdp-outline-variant);
     border-radius: 50%;
     align-items: center;
     justify-content: center;
-    background-color: var(--sds-clr-gray-01);
+    background-color: var(--sdp-surface-container-lowest);
     overflow: hidden;
 
     img {
@@ -892,12 +1130,10 @@ body {
       object-fit: contain;
     }
 
-    // Selected asset image
     &[data-size="sm"] {
       --WalletProvidersNew-assetImage-size: #{pxToRem(14px)};
     }
 
-    // Dropdown asset image
     &[data-size="md"] {
       --WalletProvidersNew-assetImage-size: #{pxToRem(20px)};
     }
@@ -910,11 +1146,11 @@ body {
       display: inline-flex;
       width: pxToRem(14px);
       height: pxToRem(14px);
-      border: 1px solid var(--sds-clr-gray-06);
+      border: 1px solid var(--sdp-outline-variant);
       border-radius: 50%;
       align-items: center;
       justify-content: center;
-      background-color: var(--sds-clr-gray-01);
+      background-color: var(--sdp-surface-container-lowest);
       overflow: hidden;
 
       img {
@@ -927,97 +1163,9 @@ body {
 
   &__responseItem {
     &__value {
-      color: var(--sds-clr-gray-12);
+      color: var(--sdp-on-surface);
     }
   }
 }
 
-// SDS overrides
-.sds-theme-light,
-.sds-theme-dark {
-  background-color: var(--sds-clr-gray-02) !important;
-}
-
-#root {
-  --sds-window-width-min: 1200px;
-  --sds-window-height-min: auto;
-
-  --sds-gap-xs: #{pxToRem(4px)};
-  --sds-gap-sm: #{pxToRem(8px)};
-  --sds-gap-md: #{pxToRem(12px)};
-  --sds-gap-lg: #{pxToRem(16px)};
-  --sds-gap-xl: #{pxToRem(24px)};
-  --sds-gap-xxl: #{pxToRem(32px)};
-
-  .Heading {
-    margin-top: 0;
-    margin-bottom: 0;
-  }
-
-  // TODO: fix in SDS
-  .Card {
-    width: auto;
-    height: auto;
-  }
-
-  // TODO: fix in SDS
-  .Tooltip {
-    ul {
-      font-size: inherit;
-      line-height: inherit;
-      color: currentColor;
-      list-style-type: disc;
-      margin-left: pxToRem(8px);
-    }
-  }
-
-  // TODO: fix in SDS
-  .Notification__message {
-    ul {
-      font-size: pxToRem(14px);
-      line-height: pxToRem(22px);
-      color: var(--sds-clr-gray-10);
-      list-style-type: disc;
-    }
-  }
-
-  // TODO: add to SDS {
-  .Input__side-element {
-    .PasswordMaskButton {
-      width: pxToRem(22px);
-      height: pxToRem(22px);
-      background: none;
-      border: none;
-      cursor: pointer;
-
-      svg {
-        display: block;
-        stroke: var(--sds-clr-gray-09);
-      }
-    }
-  }
-
-  // TODO: add toggle loader to SDS
-  .Toggle__wrapper {
-    display: flex;
-    align-items: center;
-    gap: pxToRem(4px);
-
-    .Loader {
-      --Loader-color: var(--sds-clr-gray-08);
-    }
-  }
-
-  // Floater
-  .Floater__content {
-    background-color: var(--sds-clr-gray-01);
-    border-color: var(--sds-clr-gray-04);
-  }
-
-  // TODO: fix in SDS
-  // Fix input focus border cut off
-  .Modal__content .ModalBody {
-    padding-left: pxToRem(4px);
-    margin-right: pxToRem(-4px);
-  }
-}
+// (SDS overrides moved to the root block above)
