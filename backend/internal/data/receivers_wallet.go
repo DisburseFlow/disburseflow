@@ -390,6 +390,56 @@ func (rw *ReceiverWalletModel) GetAllPendingRegistrationByDisbursementID(ctx con
 	return receiverWallets, nil
 }
 
+// UnprovisionedPhoneReceiverWallet is a receiver_wallet belonging to a
+// phone-only registration disbursement that has no Stellar address yet —
+// i.e. one walletProvisioningJob (internal/scheduler/jobs) still needs to
+// create and fund a wallet for.
+type UnprovisionedPhoneReceiverWallet struct {
+	ReceiverWalletID string `db:"receiver_wallet_id"`
+	PhoneNumber      string `db:"phone_number"`
+	AssetID          string `db:"asset_id"`
+	AssetCode        string `db:"asset_code"`
+	AssetIssuer      string `db:"asset_issuer"`
+}
+
+// GetUnprovisionedPhoneReceiverWallets returns up to limit receiver_wallets
+// for phone-only registration disbursements that don't have a Stellar
+// address yet, along with what's needed to provision one (phone number,
+// asset). Draft and Ready are both included: Draft is the normal state right
+// after CSV upload; Ready is reachable if the disbursement was started
+// before provisioning finished (see UpdateStatusByDisbursementID).
+func (rw *ReceiverWalletModel) GetUnprovisionedPhoneReceiverWallets(ctx context.Context, sqlExec db.SQLExecuter, limit int) ([]UnprovisionedPhoneReceiverWallet, error) {
+	query := `
+		SELECT
+			rw.id AS receiver_wallet_id,
+			r.phone_number AS phone_number,
+			a.id AS asset_id,
+			a.code AS asset_code,
+			a.issuer AS asset_issuer
+		FROM receiver_wallets rw
+		INNER JOIN receivers r ON r.id = rw.receiver_id
+		INNER JOIN wallets w ON w.id = rw.wallet_id
+		INNER JOIN disbursements d ON d.wallet_id = w.id
+		INNER JOIN assets a ON a.id = d.asset_id
+		INNER JOIN payments p ON p.disbursement_id = d.id AND p.receiver_id = r.id
+		WHERE d.registration_contact_type = $1
+			AND rw.status = ANY($2)
+			AND COALESCE(rw.stellar_address, '') = ''
+			AND COALESCE(r.phone_number, '') <> ''
+		GROUP BY rw.id, r.phone_number, a.id, a.code, a.issuer
+		LIMIT $3
+	`
+
+	var results []UnprovisionedPhoneReceiverWallet
+	statuses := pq.Array([]ReceiversWalletStatus{DraftReceiversWalletStatus, ReadyReceiversWalletStatus})
+	err := sqlExec.SelectContext(ctx, &results, query, RegistrationContactTypePhone, statuses, limit)
+	if err != nil {
+		return nil, fmt.Errorf("querying unprovisioned phone receiver wallets: %w", err)
+	}
+
+	return results, nil
+}
+
 // UpdateOTPByReceiverContactInfoAndWalletDomain updates receiver wallet OTP if its not verified yet, and returns the
 // number of updated rows.
 func (rw *ReceiverWalletModel) UpdateOTPByReceiverContactInfoAndWalletDomain(ctx context.Context, receiverContactInfo, sep10ClientDomain, otp string) (numberOfUpdatedRows int, err error) {
@@ -472,10 +522,22 @@ func (rw *ReceiverWalletModel) GetByReceiverIDAndWalletDomain(ctx context.Contex
 }
 
 // UpdateStatusByDisbursementID updates the status of the receiver wallets associated with a disbursement.
+//
+// Transitions to Registered are only applied to rows that already have a
+// stellar_address. Wallets are provisioned out-of-band by walletProvisioningJob
+// (internal/scheduler/jobs) — a receiver whose wallet isn't ready yet by the
+// time the disbursement is started must NOT be force-marked Registered
+// without an address (payments would fail with no destination); it's left as
+// is and picked up as soon as walletProvisioningJob finishes it.
 func (rw *ReceiverWalletModel) UpdateStatusByDisbursementID(ctx context.Context, sqlExec db.SQLExecuter, disbursementID string, from, to ReceiversWalletStatus) error {
 	if err := from.TransitionTo(to); err != nil {
 		return fmt.Errorf("cannot transition from %s to %s for receiver wallets for disbursement %s: %w", from, to, disbursementID, err)
 	}
+	// $4 repeats the same value as $1 (the target status) but as its own
+	// parameter: reusing $1 inside the guard's text comparison made Postgres
+	// infer $1 as text instead of the receiver_wallet_status enum, which
+	// broke overload resolution for create_receiver_wallet_status_history
+	// (each numbered placeholder has exactly one inferred type per query).
 	query := `
 		UPDATE receiver_wallets
 		SET status = $1,
@@ -486,10 +548,11 @@ func (rw *ReceiverWalletModel) UpdateStatusByDisbursementID(ctx context.Context,
 			JOIN receiver_wallets rw on p.receiver_wallet_id = rw.id
 			WHERE p.disbursement_id = $2
 				AND rw.status = $3
+				AND ($4 <> 'REGISTERED' OR COALESCE(rw.stellar_address, '') <> '')
 		)
 	`
 
-	result, err := sqlExec.ExecContext(ctx, query, to, disbursementID, from)
+	result, err := sqlExec.ExecContext(ctx, query, to, disbursementID, from, to)
 	if err != nil {
 		return fmt.Errorf("error updating receiver_wallets for disbursement %s: %w", disbursementID, err)
 	}

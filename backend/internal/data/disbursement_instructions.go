@@ -39,6 +39,14 @@ func (di *DisbursementInstruction) Contact() (string, error) {
 	return "", errors.New("phone and email are empty")
 }
 
+// WalletProvisioner auto-creates and funds a Stellar wallet for a phone
+// number that doesn't have one yet, returning its Stellar address. It is
+// used for phone-only registration disbursements, where there is no SEP-24
+// flow for the receiver to supply their own wallet.
+type WalletProvisioner interface {
+	ProvisionWallet(ctx context.Context, phoneNumber string, asset Asset) (stellarAddress string, err error)
+}
+
 type DisbursementInstructionModel struct {
 	dbConnectionPool          db.DBConnectionPool
 	receiverVerificationModel *ReceiverVerificationModel
@@ -396,6 +404,11 @@ func (di DisbursementInstructionModel) processReceiverWallets(ctx context.Contex
 		}
 	}
 
+	// Wallet auto-provisioning for phone-only registration disbursements
+	// happens out-of-band in walletProvisioningJob (internal/scheduler/jobs),
+	// not synchronously here — creating/funding a Stellar account per receiver
+	// is slow (Horizon round trips), and blocking the CSV upload response on
+	// it for every receiver made large disbursements time out.
 	return receiverIDToReceiverWalletIDMap, nil
 }
 

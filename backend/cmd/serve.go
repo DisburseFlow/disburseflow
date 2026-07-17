@@ -20,6 +20,7 @@ import (
 	di "github.com/stellar/stellar-disbursement-platform-backend/internal/dependencyinjection"
 	"github.com/stellar/stellar-disbursement-platform-backend/internal/message"
 	"github.com/stellar/stellar-disbursement-platform-backend/internal/monitor"
+	sapconeadapters "github.com/stellar/stellar-disbursement-platform-backend/internal/sapcone/adapters"
 	"github.com/stellar/stellar-disbursement-platform-backend/internal/scheduler"
 	"github.com/stellar/stellar-disbursement-platform-backend/internal/scheduler/jobs"
 	"github.com/stellar/stellar-disbursement-platform-backend/internal/serve"
@@ -122,6 +123,21 @@ func (s *ServerService) GetSchedulerJobRegistrars(
 			Sep10SigningPrivateKey:      serveOpts.Sep10SigningPrivateKey,
 			CrashTrackerClient:          serveOpts.CrashTrackerClient.Clone(),
 			JobIntervalSeconds:          schedulerOptions.ReceiverInvitationJobIntervalSeconds,
+		}),
+		// Auto-creates and funds Stellar wallets for phone-only registration
+		// receivers in the background, out of band from CSV upload — see
+		// internal/services/wallet_provisioning_service.go. Uses the tenant's
+		// distribution account as the treasury that funds new wallets.
+		scheduler.WithWalletProvisioningJobOption(jobs.WalletProvisioningJobOptions{
+			Models: models,
+			WalletProvisioner: sapconeadapters.NewProvisioner(
+				serveOpts.MtnDBConnectionPool,
+				serveOpts.SubmitterEngine.HorizonClient,
+				serveOpts.SubmitterEngine.SignerRouter,
+				serveOpts.SubmitterEngine.DistributionAccountResolver,
+				serveOpts.DistAccEncryptionPassphrase,
+			),
+			JobIntervalSeconds: schedulerOptions.PaymentJobIntervalSeconds,
 		}),
 	)
 

@@ -270,3 +270,10 @@ func WithSendReceiverWalletsInvitationJobOption(o jobs.SendReceiverWalletsInvita
 		s.addJob(j)
 	}
 }
+
+func WithWalletProvisioningJobOption(o jobs.WalletProvisioningJobOptions) SchedulerJobRegisterOption {
+	return func(s *Scheduler) {
+		j := jobs.NewWalletProvisioningJob(o)
+		s.addJob(j)
+	}
+}

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 
 import { BigNumber } from "bignumber.js";
 
-import { Card, Input, Select, Notification } from "@stellar/design-system";
+import { Card, Input, Notification } from "@stellar/design-system";
 
 import { AssetAmount } from "@/components/AssetAmount";
 import { InfoTooltip } from "@/components/InfoTooltip";
@@ -21,11 +21,9 @@ import { useAllBalances } from "@/hooks/useAllBalances";
 import {
   AccountBalanceItem,
   ApiAsset,
-  ApiWallet,
   Disbursement,
   DisbursementStep,
   hasWallet,
-  isUserManagedWalletEnabled,
   NONE_VERIFICATION_VALUE,
   RegistrationContactType,
   VerificationFieldMap,
@@ -33,21 +31,27 @@ import {
 
 import "./styles.scss";
 
-const ASSET_DISPLAY_LABELS: Record<string, string> = {
-  USDC: "Kenyan Shilling (KES)",
-};
-
-const assetDisplayLabel = (code: string) => ASSET_DISPLAY_LABELS[code] ?? code;
+// Every disbursement amount shown in this flow is run through AssetAmount,
+// which always converts to KES (see helpers/kesRates.ts) — so the "Currency"
+// label should always say KES too, regardless of the underlying on-chain
+// asset. Keying this off asset code (as before) let the label drift out of
+// sync with what was actually displayed.
+const CURRENCY_DISPLAY_LABEL = "Kenyan Shilling (KES)";
 
 const SDP_EMBEDDED_WALLET_NAME = "embedded wallet";
 
 const isSdpEmbeddedWallet = (walletName: string): boolean =>
   walletName.trim().toLowerCase() === SDP_EMBEDDED_WALLET_NAME;
 
-const DATE_VERIFICATION_FORMATS: Record<string, { format: string; example: string }> = {
-  DATE_OF_BIRTH: { format: "YYYY-MM-DD", example: "1994-09-30" },
-  YEAR_MONTH: { format: "YYYY-MM", example: "1994-09" },
-};
+// Disbursement creation is fixed to a single configuration: phone-based
+// registration (wallets are auto-provisioned by the backend, no SEP-24 flow),
+// the Demo Wallet provider, XLM as the on-chain asset (shown to admins as
+// KES), and National ID as the verification field. The admin only names the
+// disbursement and uploads a CSV.
+const FIXED_REGISTRATION_CONTACT_TYPE: RegistrationContactType = "PHONE_NUMBER";
+const FIXED_WALLET_NAME = "demo wallet";
+const FIXED_ASSET_CODE = "XLM";
+const FIXED_VERIFICATION_FIELD = "NATIONAL_ID_NUMBER";
 
 interface DisbursementDetailsProps {
   variant: DisbursementStep;
@@ -78,14 +82,6 @@ const initDetails: Disbursement = {
   stats: undefined,
 };
 
-enum FieldId {
-  NAME = "name",
-  REGISTRATION_CONTACT_TYPE = "registration_contact_type",
-  ASSET_CODE = "asset_code",
-  WALLET_ID = "wallet_id",
-  VERIFICATION_FIELD = "verification_field",
-}
-
 const isDisbursementValid = (inputs: Disbursement): boolean => {
   if (!inputs.name) {
     return false;
@@ -109,81 +105,26 @@ const isDisbursementValid = (inputs: Disbursement): boolean => {
 };
 
 interface DerivedFormState {
-  isWalletAddressProvided: boolean;
-  isWalletRegistrationEnabled: boolean;
-  registrationOptions: RegistrationContactType[];
-  walletOptions: ApiWallet[];
   assetOptions: ApiAsset[];
-  verificationOptions: string[];
-  selectValues: {
-    registrationContactType: string;
-    walletId: string;
-    assetId: string;
-    verificationField: string;
-  };
   labels: {
     walletProvider: string;
     verification: string;
-  };
-  disabled: {
-    registrationContactType: boolean;
-    wallet: boolean;
-    asset: boolean;
-    verification: boolean;
   };
 }
 
 interface DeriveFormStateArgs {
   details: Disbursement;
-  wallets?: ApiWallet[];
   walletAssets?: ApiAsset[];
-  registrationContactTypes?: RegistrationContactType[];
-  verificationTypes?: string[];
   allBalances?: AccountBalanceItem[];
-  loading: {
-    registrationContactTypes: boolean;
-    wallets: boolean;
-    walletAssets: boolean;
-    verificationTypes: boolean;
-  };
 }
 
-const deriveFormState = ({
-  details,
-  wallets,
-  walletAssets,
-  registrationContactTypes,
-  verificationTypes,
-  allBalances,
-  loading,
-}: DeriveFormStateArgs): DerivedFormState => {
+// Registration contact type is fixed to phone (see FIXED_REGISTRATION_CONTACT_TYPE),
+// so the wallet-address / embedded-wallet branches this used to derive select
+// options and disabled-state for are no longer reachable — this only computes
+// what the read-only summary and the asset auto-select effect still need.
+const deriveFormState = ({ details, walletAssets, allBalances }: DeriveFormStateArgs): DerivedFormState => {
   const isWalletAddressProvided = hasWallet(details.registrationContactType);
-  const isWalletRegistrationEnabled = isUserManagedWalletEnabled(wallets);
   const isEmbeddedWallet = isSdpEmbeddedWallet(details.wallet.name);
-
-  const enabledWallets = (wallets ?? []).filter((wallet) => wallet.enabled);
-  const enabledUserManagedWallets = enabledWallets.find((wallet) => wallet.user_managed);
-
-  const registrationOptions =
-    registrationContactTypes?.filter((type) => !hasWallet(type) || isWalletRegistrationEnabled) ??
-    [];
-
-  const walletOptions = enabledWallets.filter((wallet) =>
-    isWalletAddressProvided ? true : !wallet.user_managed,
-  );
-
-  const allVerificationTypes = verificationTypes ?? [];
-  const verificationOptions = (() => {
-    if (isEmbeddedWallet) {
-      return [NONE_VERIFICATION_VALUE, ...allVerificationTypes];
-    }
-
-    if (isWalletAddressProvided) {
-      return [NONE_VERIFICATION_VALUE];
-    }
-
-    return allVerificationTypes;
-  })();
 
   const assetOptions = (walletAssets ?? []).filter((asset) => {
     if (asset.code === "XLM" && asset.issuer === "") {
@@ -195,21 +136,8 @@ const deriveFormState = ({
     );
   });
 
-  const selectValues = {
-    registrationContactType: details.registrationContactType ?? "",
-    walletId: isWalletAddressProvided ? (enabledUserManagedWallets?.id ?? "") : details.wallet.id,
-    assetId: details.asset.id,
-    verificationField: isWalletAddressProvided
-      ? NONE_VERIFICATION_VALUE
-      : (details.verificationField ?? ""),
-  };
-
   const labels = {
-    walletProvider: details.wallet.name
-      ? details.wallet.name
-      : isWalletAddressProvided
-        ? (enabledUserManagedWallets?.name ?? "-")
-        : "-",
+    walletProvider: details.wallet.name || "-",
     verification: details.verificationField
       ? VerificationFieldMap[details.verificationField] || details.verificationField
       : isWalletAddressProvided || isEmbeddedWallet
@@ -217,34 +145,7 @@ const deriveFormState = ({
         : "-",
   };
 
-  const disabled = {
-    registrationContactType: loading.registrationContactTypes,
-    wallet:
-      loading.wallets ||
-      !registrationContactTypes ||
-      !details.registrationContactType ||
-      isWalletAddressProvided,
-    asset:
-      loading.walletAssets ||
-      (!details.wallet.id && (!isWalletAddressProvided || !details.registrationContactType)),
-    verification:
-      loading.verificationTypes ||
-      !registrationContactTypes ||
-      !details.registrationContactType ||
-      isWalletAddressProvided,
-  };
-
-  return {
-    isWalletAddressProvided,
-    isWalletRegistrationEnabled,
-    registrationOptions,
-    walletOptions,
-    assetOptions,
-    verificationOptions,
-    selectValues,
-    labels,
-    disabled,
-  };
+  return { assetOptions, labels };
 };
 
 export const DisbursementDetails: React.FC<DisbursementDetailsProps> = ({
@@ -279,29 +180,7 @@ export const DisbursementDetails: React.FC<DisbursementDetailsProps> = ({
 
   const { allBalances } = useAllBalances();
 
-  const derived = deriveFormState({
-    details,
-    wallets,
-    walletAssets,
-    registrationContactTypes,
-    verificationTypes,
-    allBalances,
-    loading: {
-      registrationContactTypes: areRegistrationContactTypesLoading,
-      wallets: isWalletsLoading,
-      walletAssets: isWalletAssetsFetching,
-      verificationTypes: isVerificationTypesFetching,
-    },
-  });
-
-  // Auto-select the only available asset so the user doesn't need to pick it manually.
-  useEffect(() => {
-    if (derived.assetOptions.length === 1 && details.asset.id !== derived.assetOptions[0].id) {
-      const only = derived.assetOptions[0];
-      onChange?.({ ...details, asset: { id: only.id, code: only.code } });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [derived.assetOptions.length, details.asset.id]);
+  const derived = deriveFormState({ details, walletAssets, allBalances });
 
   const apiErrors = [
     registrationContactTypesError?.message,
@@ -322,84 +201,88 @@ export const DisbursementDetails: React.FC<DisbursementDetailsProps> = ({
     onValidate?.(isDisbursementValid(updatedDetails));
   };
 
-  const handleRegistrationContactTypeChange = (value: string) => {
-    const registrationContactType = registrationContactTypes?.find((type) => type === value);
-    const nextHasWallet = hasWallet(registrationContactType);
-    const currentHasWallet = hasWallet(details.registrationContactType);
+  // Auto-fill the fixed configuration as each dependency loads: registration
+  // contact type and verification field need no prerequisite; the wallet
+  // needs registration contact type set first (it affects which wallets are
+  // eligible); the asset needs the wallet set first (assets are fetched per
+  // wallet). No Select inputs are rendered for these — see renderFormFields.
+  useEffect(() => {
+    const updates: Partial<Disbursement> = {};
 
-    const updates: Partial<Disbursement> = {
-      registrationContactType,
-    };
-
-    if (!registrationContactType || nextHasWallet) {
-      updates.wallet = { id: "", name: "" };
-      updates.verificationField = "";
+    if (
+      !details.registrationContactType &&
+      registrationContactTypes?.includes(FIXED_REGISTRATION_CONTACT_TYPE)
+    ) {
+      updates.registrationContactType = FIXED_REGISTRATION_CONTACT_TYPE;
     }
 
-    if (!registrationContactType || nextHasWallet !== currentHasWallet) {
-      updates.asset = { id: "", code: "" };
+    if (!details.wallet.id && details.registrationContactType && wallets?.length) {
+      const demoWallet = wallets.find(
+        (wallet) => wallet.enabled && wallet.name.trim().toLowerCase() === FIXED_WALLET_NAME,
+      );
+      if (demoWallet) {
+        updates.wallet = { id: demoWallet.id, name: demoWallet.name };
+      }
     }
 
-    updateDetails(updates);
-  };
+    if (
+      !details.verificationField &&
+      verificationTypes?.includes(FIXED_VERIFICATION_FIELD as (typeof verificationTypes)[number])
+    ) {
+      updates.verificationField = FIXED_VERIFICATION_FIELD;
+    }
 
-  const handleWalletChange = (value: string) => {
-    const wallet = wallets?.find((wallet) => wallet.id === value);
+    if (Object.keys(updates).length > 0) {
+      updateDetails(updates);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    registrationContactTypes,
+    wallets,
+    verificationTypes,
+    details.registrationContactType,
+    details.wallet.id,
+    details.verificationField,
+  ]);
 
-    updateDetails({
-      wallet: {
-        id: wallet?.id ?? "",
-        name: wallet?.name ?? "",
-      },
-    });
-  };
+  useEffect(() => {
+    if (!details.wallet.id || details.asset.id) {
+      return;
+    }
 
-  const handleAssetChange = (value: string) => {
-    const asset = walletAssets?.find((item) => item.id === value);
+    const xlmAsset = derived.assetOptions.find((asset) => asset.code === FIXED_ASSET_CODE);
+    if (xlmAsset) {
+      updateDetails({ asset: { id: xlmAsset.id, code: xlmAsset.code } });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [details.wallet.id, details.asset.id, derived.assetOptions]);
 
-    updateDetails({
-      asset: {
-        id: asset?.id ?? "",
-        code: asset?.code ?? "",
-      },
-    });
-  };
+  const fixedFieldsReady = Boolean(
+    details.registrationContactType && details.wallet.id && details.asset.id && details.verificationField,
+  );
 
-  const handleVerificationFieldChange = (value: string) => {
-    updateDetails({ verificationField: value });
-  };
+  const isStillLoadingFixedFields =
+    !fixedFieldsReady &&
+    (areRegistrationContactTypesLoading ||
+      isWalletsLoading ||
+      isWalletAssetsFetching ||
+      isVerificationTypesFetching);
+
+  const demoWalletMissing =
+    !isWalletsLoading && !details.wallet.id && details.registrationContactType && wallets
+      ? !wallets.some(
+          (wallet) => wallet.enabled && wallet.name.trim().toLowerCase() === FIXED_WALLET_NAME,
+        )
+      : false;
+
+  const xlmAssetMissing =
+    !isWalletAssetsFetching && details.wallet.id && !details.asset.id
+      ? !derived.assetOptions.some((asset) => asset.code === FIXED_ASSET_CODE)
+      : false;
 
   const handleNameChange = (value: string) => {
     updateDetails({ name: value });
   };
-
-  const handleFieldChange = (event: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
-    const { id, value } = event.target;
-
-    switch (id) {
-      case FieldId.REGISTRATION_CONTACT_TYPE:
-        handleRegistrationContactTypeChange(value);
-        break;
-      case FieldId.WALLET_ID:
-        handleWalletChange(value);
-        break;
-      case FieldId.ASSET_CODE:
-        handleAssetChange(value);
-        break;
-      case FieldId.VERIFICATION_FIELD:
-        handleVerificationFieldChange(value);
-        break;
-      case FieldId.NAME:
-        handleNameChange(value);
-        break;
-      default:
-        break;
-    }
-  };
-
-  const renderDropdownDefault = (isLoading: boolean) => (
-    <option>{isLoading ? "Loading…" : ""}</option>
-  );
 
   const renderSummaryFields = () => (
     <>
@@ -417,7 +300,7 @@ export const DisbursementDetails: React.FC<DisbursementDetailsProps> = ({
 
       <div>
         <label className="Label Label--sm">Currency</label>
-        <div className="DisbursementDetailsFields__value">{assetDisplayLabel(details.asset.code)}</div>
+        <div className="DisbursementDetailsFields__value">{CURRENCY_DISPLAY_LABEL}</div>
       </div>
 
       <div>
@@ -454,104 +337,32 @@ export const DisbursementDetails: React.FC<DisbursementDetailsProps> = ({
 
   const renderFormFields = () => (
     <>
-      <Select
-        id={FieldId.REGISTRATION_CONTACT_TYPE}
-        label={
-          <InfoTooltip
-            hideTooltip={derived.isWalletRegistrationEnabled}
-            infoText="Registering receivers wallet directly is disabled. It can be enabled in the 'Wallet Providers' section."
-          >
-            Registration Contact Type
-          </InfoTooltip>
-        }
-        fieldSize="sm"
-        onChange={handleFieldChange}
-        value={derived.selectValues.registrationContactType}
-        disabled={derived.disabled.registrationContactType}
-      >
-        {renderDropdownDefault(areRegistrationContactTypesLoading)}
-        {derived.registrationOptions.map((option) => (
-          <option key={option} value={option}>
-            {formatRegistrationContactType(option)}
-          </option>
-        ))}
-      </Select>
+      {isStillLoadingFixedFields ? (
+        <Notification variant="primary" title="Preparing disbursement defaults…">
+          Setting up phone registration, the Demo Wallet provider, XLM, and National ID
+          verification.
+        </Notification>
+      ) : null}
 
-      <Select
-        id={FieldId.WALLET_ID}
-        label="Provider"
-        fieldSize="sm"
-        onChange={handleFieldChange}
-        value={derived.selectValues.walletId}
-        disabled={derived.disabled.wallet}
-      >
-        {renderDropdownDefault(isWalletsLoading)}
-        {derived.walletOptions.map((wallet) => (
-          <option key={wallet.id} value={wallet.id}>
-            {wallet.name}
-          </option>
-        ))}
-      </Select>
+      {demoWalletMissing ? (
+        <Notification variant="error" title="Demo Wallet not found" isFilled={true}>
+          This disbursement flow requires a wallet provider named &quot;Demo Wallet&quot;. Ask an
+          administrator to configure it under Wallet Providers.
+        </Notification>
+      ) : null}
 
-      {derived.assetOptions.length !== 1 && (
-        <Select
-          id={FieldId.ASSET_CODE}
-          label="Currency"
-          fieldSize="sm"
-          onChange={handleFieldChange}
-          value={derived.selectValues.assetId}
-          disabled={derived.disabled.asset}
-        >
-          {renderDropdownDefault(isWalletAssetsFetching)}
-          {derived.assetOptions.map((asset) => (
-            <option key={asset.id} value={asset.id}>
-              {assetDisplayLabel(asset.code)}
-            </option>
-          ))}
-        </Select>
-      )}
-
-      <Select
-        id={FieldId.VERIFICATION_FIELD}
-        label="Verification type"
-        fieldSize="sm"
-        onChange={handleFieldChange}
-        value={derived.selectValues.verificationField}
-        disabled={derived.disabled.verification}
-      >
-        {renderDropdownDefault(isVerificationTypesFetching)}
-        {derived.verificationOptions.map((option) => (
-          <option key={option} value={option}>
-            {VerificationFieldMap[option] || option}
-          </option>
-        ))}
-      </Select>
-
-      {(() => {
-        const { verificationField } = derived.selectValues;
-        const dateFormat = DATE_VERIFICATION_FORMATS[verificationField];
-        const fieldLabel = VerificationFieldMap[verificationField] || verificationField;
-        return dateFormat ? (
-          <div className="DisbursementDetailsFields__dateFormatNotice">
-            <Notification variant="primary" title={`Expected '${fieldLabel}' format`}>
-              <p>
-                Ensure dates are in <strong>{dateFormat.format}</strong>
-                {` format (e.g. ${dateFormat.example}).`}
-              </p>
-              <p>
-                Spreadsheet apps like Excel may reformat dates when editing the CSV file. Check the
-                verification column before uploading.
-              </p>
-            </Notification>
-          </div>
-        ) : null;
-      })()}
+      {xlmAssetMissing ? (
+        <Notification variant="error" title="XLM not available" isFilled={true}>
+          The Demo Wallet provider doesn&apos;t support XLM. Ask an administrator to enable it under
+          Wallet Providers.
+        </Notification>
+      ) : null}
 
       <Input
-        id={FieldId.NAME}
+        id="name"
         label="Disbursement name"
         fieldSize="sm"
-        onChange={handleFieldChange}
+        onChange={(event) => handleNameChange(event.target.value)}
         value={details.name}
       />
     </>
@@ -576,7 +387,7 @@ export const DisbursementDetails: React.FC<DisbursementDetailsProps> = ({
       ) : null}
 
       <Card>
-        <InfoTooltip infoText="Select each field and give your disbursement a unique name">
+        <InfoTooltip infoText="Registration, wallet provider, currency, and verification are pre-configured for this disbursement flow. Just give it a unique name.">
           <Title size="md">Disbursement details</Title>
         </InfoTooltip>
 

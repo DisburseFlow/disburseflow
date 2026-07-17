@@ -26,7 +26,7 @@ type Receiver struct {
 	PhoneNumber string     `json:"phone_number,omitempty" db:"phone_number"`
 	ExternalID  string     `json:"external_id,omitempty" db:"external_id"`
 	Name        string     `json:"name,omitempty" db:"name"`
-	IDNo        string     `json:"id_no,omitempty" db:"id_no"`
+	IDNo        *string    `json:"id_no,omitempty" db:"id_no"`
 	CreatedAt   *time.Time `json:"created_at,omitempty" db:"created_at"`
 	UpdatedAt   *time.Time `json:"updated_at,omitempty" db:"updated_at"`
 	ReceiverStats

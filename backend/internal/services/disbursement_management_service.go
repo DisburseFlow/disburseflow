@@ -243,10 +243,16 @@ func (s *DisbursementManagementService) StartDisbursement(ctx context.Context, d
 			return fmt.Errorf("error updating payment status to ready for disbursement with id %s: %w", disbursementID, err)
 		}
 
-		// 6. Update all receiver_wallets from `draft` to `ready`
+		// 6a. Update all receiver_wallets from `draft` to `ready`
 		err = s.Models.ReceiverWallet.UpdateStatusByDisbursementID(ctx, dbTx, disbursementID, data.DraftReceiversWalletStatus, data.ReadyReceiversWalletStatus)
 		if err != nil {
 			return fmt.Errorf("error updating receiver wallet status to ready for disbursement with id %s: %w", disbursementID, err)
+		}
+
+		// 6b. Update all receiver_wallets from `ready` to `registered` — admin-controlled flow skips SEP-24
+		err = s.Models.ReceiverWallet.UpdateStatusByDisbursementID(ctx, dbTx, disbursementID, data.ReadyReceiversWalletStatus, data.RegisteredReceiversWalletStatus)
+		if err != nil {
+			return fmt.Errorf("error updating receiver wallet status to registered for disbursement with id %s: %w", disbursementID, err)
 		}
 
 		// 7. Update disbursement status to `started`
