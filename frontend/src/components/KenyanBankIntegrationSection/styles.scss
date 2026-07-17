@@ -1,0 +1,121 @@
+@use "../../styles/styles-utils.scss" as *;
+
+.KenyanBankIntegrationSection {
+  &__banks {
+    display: flex;
+    flex-direction: column;
+    gap: pxToRem(12px);
+  }
+
+  &__bankCard {
+    display: flex;
+    flex-direction: column;
+    gap: pxToRem(12px);
+    padding: pxToRem(16px);
+    background: var(--sdp-surface-container-lowest);
+    border: 1px solid var(--sdp-outline-variant);
+    border-radius: pxToRem(8px);
+
+    &__header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    &__name {
+      display: flex;
+      align-items: center;
+      gap: pxToRem(8px);
+      font-family: var(--sdp-ff-base);
+      font-size: pxToRem(14px);
+      font-weight: 600;
+      color: var(--sdp-on-surface);
+
+      svg {
+        width: pxToRem(18px);
+        height: pxToRem(18px);
+        flex-shrink: 0;
+      }
+    }
+
+    &__details {
+      display: flex;
+      flex-direction: column;
+      gap: pxToRem(8px);
+      padding: pxToRem(12px);
+      background: var(--sdp-surface-container-low);
+      border-radius: pxToRem(6px);
+    }
+
+    &__detail {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: pxToRem(8px);
+
+      .Label {
+        font-size: pxToRem(12px);
+        color: var(--sdp-on-surface-variant);
+        white-space: nowrap;
+      }
+    }
+
+    &__value {
+      font-family: var(--sdp-ff-mono, monospace);
+      font-size: pxToRem(14px);
+      font-weight: 600;
+      color: var(--sdp-on-surface);
+
+      &--secondary {
+        font-family: var(--sdp-ff-base);
+        font-weight: 400;
+        color: var(--sdp-on-surface-variant);
+      }
+    }
+
+    &__actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+  }
+
+  // ── Deposits table ─────────────────────────────────────────────────────────
+  &__depositsTable {
+    overflow-x: auto;
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: var(--sdp-ff-base);
+      font-size: pxToRem(13px);
+    }
+
+    th {
+      text-align: left;
+      padding: pxToRem(8px) pxToRem(12px);
+      font-weight: 600;
+      font-size: pxToRem(12px);
+      color: var(--sdp-on-surface-variant);
+      border-bottom: 1px solid var(--sdp-outline-variant);
+      white-space: nowrap;
+    }
+  }
+
+  &__depositRow {
+    td {
+      padding: pxToRem(10px) pxToRem(12px);
+      border-bottom: 1px solid var(--sdp-outline-variant);
+      color: var(--sdp-on-surface);
+      vertical-align: middle;
+    }
+
+    &:last-child td {
+      border-bottom: none;
+    }
+
+    &__amount {
+      font-family: var(--sdp-ff-mono, monospace);
+      font-weight: 600;
+    }
+  }
+}
