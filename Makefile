@@ -5,7 +5,7 @@
 SUDO := $(shell docker version >/dev/null 2>&1 || echo "sudo")
 
 .PHONY: build build-backend build-frontend \
-        dev dev-backend dev-frontend dev-setup setup \
+        dev dev-backend dev-frontend dev-setup up setup \
         db-migrate tenant-setup \
         test test-backend test-frontend \
         lint lint-backend lint-frontend \
@@ -143,6 +143,10 @@ docker-build:
 		--build-arg GIT_COMMIT=$(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown") \
 		-t stellar-disbursement-platform:latest .
 
+up:
+	@echo "🚀 Starting all core services (db, backend, demo-wallet, tss)..."
+	docker compose up --build db backend demo-wallet tss
+
 docker-compose-up:
 	docker compose up --build
 
@@ -193,8 +197,9 @@ help:
 	@echo "  lint             Lint all code"
 	@echo ""
 	@echo "Docker:"
+	@echo "  up               Start core services: db, backend, demo-wallet, tss"
 	@echo "  docker-build     Build production Docker image"
-	@echo "  docker-compose-up   Start all services via Compose"
+	@echo "  docker-compose-up   Start ALL services via Compose (includes frontend)"
 	@echo "  docker-compose-down Stop all services"
 	@echo ""
 	@echo "Other:"
