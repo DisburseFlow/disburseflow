@@ -1,0 +1,35 @@
+@use "../../styles/styles-utils.scss" as *;
+
+.KenyanBankPaymentMethods {
+  display: flex;
+  flex-direction: column;
+  gap: pxToRem(12px);
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: pxToRem(8px);
+  }
+
+  &__item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: pxToRem(12px) pxToRem(16px);
+    background: var(--sds-clr-gray-01);
+    border: 1px solid var(--sds-clr-gray-04);
+    border-radius: pxToRem(8px);
+  }
+
+  &__itemInfo {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: pxToRem(8px);
+    font-family: var(--sds-ff-base);
+    font-size: pxToRem(14px);
+    font-weight: 500;
+    color: var(--sds-clr-gray-12);
+  }
+}

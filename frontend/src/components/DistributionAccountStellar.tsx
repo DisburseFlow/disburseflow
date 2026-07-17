@@ -8,6 +8,7 @@ import { BridgeIntegrationSection } from "@/components/BridgeIntegrationSection"
 import { BridgeOptInModal } from "@/components/BridgeOptInModal";
 import { ErrorWithExtras } from "@/components/ErrorWithExtras";
 import { InfoTooltip } from "@/components/InfoTooltip";
+import { KenyanBankIntegrationSection } from "@/components/KenyanBankIntegrationSection";
 import { LoadingContent } from "@/components/LoadingContent";
 import { SectionHeader } from "@/components/SectionHeader";
 import { Title } from "@/components/Title";
@@ -18,8 +19,11 @@ import { STELLAR_EXPERT_URL } from "@/constants/envVariables";
 
 import { useUpdateBridgeIntegration } from "@/apiQueries/useUpdateBridgeIntegration";
 
+import { formatKes } from "@/helpers/formatKes";
+
 import { useOrgAccountInfo } from "@/hooks/useOrgAccountInfo";
 import { useRedux } from "@/hooks/useRedux";
+import { useUsdToKesRate } from "@/hooks/useUsdToKesRate";
 
 import { ShowForRoles } from "./ShowForRoles";
 
@@ -32,6 +36,10 @@ export const DistributionAccountStellar = () => {
   const { distributionAccountPublicKey } = organization.data;
 
   const { balances, fetchAccountBalances } = useOrgAccountInfo(distributionAccountPublicKey);
+  const { rate: usdToKesRate, isLoading: isRateLoading } = useUsdToKesRate();
+
+  // USDC is treated 1:1 with USD for KES conversion purposes.
+  const usdcBalance = balances?.find((b) => b.assetCode === "USDC");
 
   const {
     mutateAsync: updateBridgeIntegration,
@@ -91,7 +99,7 @@ export const DistributionAccountStellar = () => {
     }
 
     if (balances?.length === 0) {
-      return <div className="Note">There are no distribution accounts</div>;
+      return <div className="Note">No account details available yet</div>;
     }
 
     return (
@@ -100,17 +108,11 @@ export const DistributionAccountStellar = () => {
           <Profile publicAddress={distributionAccountPublicKey} size="md" isCopy hideAvatar />
           <Box gap="xs" addlClassName="Note">
             <span>
-              Fund your distribution account by sending Stellar-based digital assets to the public
-              key above.
-            </span>
-            <span>
-              Your distribution account serves as the source of funds for all outgoing payments. It
-              is a standard Stellar account that can also receive incoming payments. To receive
-              payments, provide your public key to the sender (no memo required). Assets sent to
-              this address will appear immediately in your distribution account.
+              This is your account&rsquo;s underlying wallet address on the Stellar network. You
+              generally won&rsquo;t need this — use the funding options above instead.
             </span>
             <span className="Note__emphasis">
-              Note: For security and operational best practice, only fund this account when you’re
+              Note: For security and operational best practice, only fund this account when you're
               ready to send disbursements. Any authorized SDP user with disbursement permissions can
               initiate payments from this account.
             </span>
@@ -118,7 +120,7 @@ export const DistributionAccountStellar = () => {
         </div>
 
         <div className="WalletBalances">
-          <Title size="sm">Current balance:</Title>
+          <Title size="sm">Asset balances:</Title>
           <AccountBalances accountBalances={balances} />
         </div>
       </>
@@ -131,7 +133,7 @@ export const DistributionAccountStellar = () => {
         <SectionHeader.Row>
           <SectionHeader.Content>
             <Heading as="h2" size="sm">
-              Distribution Account
+              Fund Account
             </Heading>
           </SectionHeader.Content>
         </SectionHeader.Row>
@@ -140,39 +142,23 @@ export const DistributionAccountStellar = () => {
       <div className="CardStack">
         <Card>
           <div className="CardStack__card">
-            <div className="CardStack__title">
-              <InfoTooltip infoText="The Stellar wallet address of the source of funds for your organization’s payments">
-                Distribution account public key
-              </InfoTooltip>
-            </div>
-
-            {renderContent()}
-          </div>
-        </Card>
-
-        {/* TODO: hard-coded to a single wallet, figure out how to handle multiple */}
-        <WalletTrustlines
-          balances={balances || undefined}
-          onSuccess={() => {
-            fetchAccountBalances();
-          }}
-        />
-
-        <Card>
-          <div className="CardStack__card">
-            <div className="CardStack__title">
-              <Box gap="xs" direction="row" align="center">
-                <InfoTooltip infoText="A record of payments to and from your distribution account, sourced directly from the Stellar network">
-                  Wallet history
-                </InfoTooltip>
-                <Link href={`${STELLAR_EXPERT_URL}/account/${distributionAccountPublicKey}`}>
-                  <Icon.LinkExternal01 className="ExternalLinkIcon" />
-                </Link>
+            <div className="CardStack__title">Account balance</div>
+            {usdcBalance ? (
+              <Box gap="xs">
+                <Title size="lg">
+                  {isRateLoading || !usdToKesRate
+                    ? "Loading…"
+                    : formatKes(usdcBalance.balance, usdToKesRate)}
+                </Title>
+                <span className="Note">Updates in real time as deposits arrive</span>
               </Box>
-            </div>
-            <WalletHistory stellarAddress={distributionAccountPublicKey} />
+            ) : (
+              <div className="Note">No balance yet. Fund your account below to get started.</div>
+            )}
           </div>
         </Card>
+
+        <KenyanBankIntegrationSection />
 
         <ShowForRoles acceptedRoles={["owner", "financial_controller"]}>
           <BridgeIntegrationSection
@@ -180,6 +166,46 @@ export const DistributionAccountStellar = () => {
             onCreateVirtualAccount={handleCreateVirtualAccount}
           />
         </ShowForRoles>
+
+        <details className="CardStack__technicalDetails">
+          <summary>Technical details</summary>
+
+          <Card>
+            <div className="CardStack__card">
+              <div className="CardStack__title">
+                <InfoTooltip infoText="The Stellar wallet address of the source of funds for your organization's payments">
+                  Account address
+                </InfoTooltip>
+              </div>
+
+              {renderContent()}
+            </div>
+          </Card>
+
+          {/* TODO: hard-coded to a single wallet, figure out how to handle multiple */}
+          <WalletTrustlines
+            balances={balances || undefined}
+            onSuccess={() => {
+              fetchAccountBalances();
+            }}
+          />
+
+          <Card>
+            <div className="CardStack__card">
+              <div className="CardStack__title">
+                <Box gap="xs" direction="row" align="center">
+                  <InfoTooltip infoText="A record of payments to and from your account, sourced directly from the Stellar network">
+                    Wallet history
+                  </InfoTooltip>
+                  <Link href={`${STELLAR_EXPERT_URL}/account/${distributionAccountPublicKey}`}>
+                    <Icon.LinkExternal01 className="ExternalLinkIcon" />
+                  </Link>
+                </Box>
+              </div>
+              <WalletHistory stellarAddress={distributionAccountPublicKey} />
+            </div>
+          </Card>
+        </details>
       </div>
 
       <BridgeOptInModal

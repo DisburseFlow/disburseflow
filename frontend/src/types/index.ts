@@ -1143,6 +1143,63 @@ export type BridgeKYCStatusType =
 
 export type BridgeTOSStatusType = "pending" | "approved";
 
+// ── Kenyan bank integration ───────────────────────────────────────────────────
+
+export type KenyanBankName = "EQUITY" | "KCB";
+
+export type KenyanBankIntegrationStatus =
+  | "NOT_CONFIGURED"
+  | "ACTIVE"
+  | "SUSPENDED";
+
+export type KenyanBankDepositStatus =
+  | "RECEIVED"
+  | "PENDING_SWAP"
+  | "SWAPPED"
+  | "FAILED";
+
+export interface KenyanBankIntegration {
+  id: string;
+  bank: KenyanBankName;
+  status: KenyanBankIntegrationStatus;
+  paybill_number: string | null;
+  account_number: string | null;
+  activated_by: string | null;
+  activated_at: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface KenyanBankDeposit {
+  id: string;
+  bank: KenyanBankName;
+  xml_message_id: string;
+  kes_amount: number;
+  usdc_amount: number | null;
+  kes_to_usd_rate: number | null;
+  sender_name: string | null;
+  sender_account: string | null;
+  sender_bank: string | null;
+  narration: string | null;
+  reference_number: string | null;
+  status: KenyanBankDepositStatus;
+  stellar_tx_hash: string | null;
+  received_at: string;
+  converted_at: string | null;
+  error_message: string | null;
+}
+
+export interface KenyanBankIntegrationResponse {
+  integrations: KenyanBankIntegration[];
+  recent_deposits: KenyanBankDeposit[];
+}
+
+export interface KenyanBankIntegrationUpdate {
+  bank: KenyanBankName;
+  status: "ACTIVE" | "SUSPENDED";
+}
+
 export type Trustline = {
   id: string | null;
   code: string;

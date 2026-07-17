@@ -125,14 +125,14 @@ export const DashboardAnalytics = () => {
 
           <div className="StatCards__card__column">
             <div className="StatCards__card__item StatCards__card__item--inline">
-              <label className="StatCards__card__item__label">Individuals</label>
+              <label className="StatCards__card__item__label">Beneficiaries</label>
               <div className="StatCards__card__item__value">
                 {renderNumberOrDash(stats?.individualsTotalCount)}
               </div>
             </div>
 
             <div className="StatCards__card__item StatCards__card__item--inline">
-              <label className="StatCards__card__item__label">Wallets</label>
+              <label className="StatCards__card__item__label">Participants</label>
               <div className="StatCards__card__item__value">
                 {renderNumberOrDash(stats?.walletsTotalCount)}
               </div>

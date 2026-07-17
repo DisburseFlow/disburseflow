@@ -1,3 +1,7 @@
-phone,name,idno,amount
-"--- Below are EXAMPLE rows.","Please DELETE these rows before uploading your actual data ---",,
-+1604xxxxxxx,Jane Doe,AB123456,520
+phone,id,name,idno,amount
+"--- Below are EXAMPLE rows.","Please DELETE these rows before uploading your actual data",,
++254700000010,2ba2,Amina Hassan,29374810,12
++254700000011,2ba4,Fatuma Abdi,38291047,14
++254700000012,2ba6,Halima Wako,47381920,16
++254700000013,2ba8,Ibrahim Golo,56473829,18
++254700000014,2ba0,Muktar Dida,65829374,20

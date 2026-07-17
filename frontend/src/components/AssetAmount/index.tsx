@@ -1,4 +1,5 @@
 import { decimal } from "@/helpers/formatIntlNumber";
+import { formatKes } from "@/helpers/kesRates";
 
 import EurocLogoSrc from "@/assets/logo-euroc.svg";
 import UsdcLogoSrc from "@/assets/logo-usdc.svg";
@@ -10,6 +11,7 @@ interface AssetAmountProps {
   assetCode?: string;
   fallback?: string;
   showIcon?: boolean;
+  showRaw?: boolean;
 }
 
 export const AssetAmount: React.FC<AssetAmountProps> = ({
@@ -17,9 +19,14 @@ export const AssetAmount: React.FC<AssetAmountProps> = ({
   assetCode,
   fallback,
   showIcon,
+  showRaw,
 }: AssetAmountProps) => {
   if (!amount) {
     return fallback ? <>{fallback}</> : null;
+  }
+
+  if (!showRaw && assetCode) {
+    return <span className="AssetAmount">{formatKes(amount, assetCode)}</span>;
   }
 
   const assets = [

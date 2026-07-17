@@ -16,7 +16,7 @@ export const PaymentStatus = ({ status }: { status: PaymentStatusType }) => {
     case "READY":
       return <span className="PaymentStatus PaymentStatus--accent">Ready</span>;
     case "SUCCESS":
-      return <span className="PaymentStatus PaymentStatus--accent">Success</span>;
+      return <span className="PaymentStatus PaymentStatus--accent">Payment Successful</span>;
     default:
       return null;
   }
