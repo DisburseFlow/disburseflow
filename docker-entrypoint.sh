@@ -100,8 +100,18 @@ sleep 1
 $BIN serve --port "${BACKEND_PORT}" &
 BACKEND_PID=$!
 
-# Forward SIGTERM/SIGINT to the backend process
-trap 'kill -TERM $BACKEND_PID; wait $BACKEND_PID' TERM INT
+# =============================================================================
+# Start the Transaction Submission Service (TSS).
+# stellar_payment_to_submitter_job (run by `serve`) only queues payments into
+# tss.submitter_transactions — this process is what actually signs and submits
+# them to the Stellar network. Without it, payments sit at PENDING forever.
+# =============================================================================
+$BIN tss &
+TSS_PID=$!
 
-# Block until the backend exits, propagating its exit code
+# Forward SIGTERM/SIGINT to both background processes
+trap 'kill -TERM $BACKEND_PID $TSS_PID 2>/dev/null; wait' TERM INT
+
+# Block until both exit
 wait $BACKEND_PID
+wait $TSS_PID
