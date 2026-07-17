@@ -16,7 +16,7 @@ export const useWallets = ({ userManaged, supportedAssets, walletId }: UseWallet
   const query = useQuery<ApiWallet[], AppError>({
     queryKey: ["wallets", { userManaged, supportedAssets, walletId }],
     queryFn: async () => {
-      const url = new URL(`${API_URL}/wallets`);
+      const url = new URL(`${API_URL}/wallets`, window.location.origin);
 
       if (userManaged !== undefined) {
         url.searchParams.append("user_managed", userManaged.toString());
