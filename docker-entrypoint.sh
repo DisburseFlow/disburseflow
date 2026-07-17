@@ -4,6 +4,33 @@ set -e
 BIN=/app/stellar-disbursement-platform
 
 # =============================================================================
+# Write runtime env-config.js for the React frontend.
+#
+# API_URL must be the public URL of this service (same origin), so browser
+# requests go to nginx and are proxied through to the Go backend.
+#
+# Override by setting PUBLIC_URL in the container's environment variables.
+# Defaults to empty string (same-origin relative URLs).
+# =============================================================================
+PUBLIC_URL="${PUBLIC_URL:-}"
+ENV_CONFIG_PATH="/usr/share/nginx/html/settings/env-config.js"
+mkdir -p "$(dirname "$ENV_CONFIG_PATH")"
+
+cat > "$ENV_CONFIG_PATH" <<EOF
+window._env_ = {
+  API_URL: "${PUBLIC_URL}",
+  DISABLE_TENANT_PREFIL_FROM_DOMAIN: "${DISABLE_TENANT_PREFIL_FROM_DOMAIN:-}",
+  STELLAR_EXPERT_URL: "${STELLAR_EXPERT_URL:-https://stellar.expert/explorer/testnet}",
+  HORIZON_URL: "${HORIZON_URL:-https://horizon-testnet.stellar.org}",
+  RPC_ENABLED: ${RPC_ENABLED:-false},
+  RECAPTCHA_SITE_KEY: "${RECAPTCHA_SITE_KEY:-}",
+  SINGLE_TENANT_MODE: ${SINGLE_TENANT_MODE:-true},
+};
+EOF
+
+echo "✅ env-config.js written (API_URL=${PUBLIC_URL})"
+
+# =============================================================================
 # Run database migrations before starting any services.
 # The SDP requires four migration passes + network setup:
 #   1. admin  — creates the multi-tenant schema (incl. the "tenants" table)
