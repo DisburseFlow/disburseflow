@@ -133,14 +133,18 @@ export default defineConfig(({ mode }) => {
             "vendor-query": ["@tanstack/react-query"],
           },
           assetFileNames: (assetInfo) => {
+            // Deliberately not "assets/" — that path collides with the
+            // backend's real /assets API resource, and nginx's proxy regex
+            // (which lists real API routes, incl. "assets") would otherwise
+            // intercept these static files and route them to the Go backend.
             const fileName = assetInfo.names?.[0];
-            if (!fileName) return "assets/[name]-[hash][extname]";
+            if (!fileName) return "static-assets/[name]-[hash][extname]";
 
             const ext = fileName.split(".").pop()?.toLowerCase();
             if (ext && /^(png|jpe?g|svg|gif|tiff|bmp|ico)$/.test(ext)) {
-              return `assets/images/[name]-[hash][extname]`;
+              return `static-assets/images/[name]-[hash][extname]`;
             }
-            return `assets/[name]-[hash][extname]`;
+            return `static-assets/[name]-[hash][extname]`;
           },
           chunkFileNames: "static/[name]-[hash].js",
           entryFileNames: "static/[name]-[hash].js",
