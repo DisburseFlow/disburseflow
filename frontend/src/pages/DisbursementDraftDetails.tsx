@@ -321,9 +321,10 @@ export const DisbursementDraftDetails = () => {
     }
 
     const successMessageArray: string[] = [
-      "Payments will begin automatically",
-      isKWA ? "" : " to receivers who have registered their wallet",
-      ". Click 'View' to track your disbursement in real-time.",
+      isKWA
+        ? "Payments will begin automatically."
+        : "Wallets are being created for your receivers in the background — no action needed from them. Payments will begin automatically as each wallet becomes ready.",
+      " Click 'View' to track your disbursement in real-time.",
     ].filter((m) => Boolean(m));
 
     // Confirmation
@@ -362,10 +363,7 @@ export const DisbursementDraftDetails = () => {
               csvFile={csvFile}
             />
             {!isKWA && (
-              <DisbursementInviteMessage
-                isEditMessage={false}
-                draftMessage={draftDetails?.details.receiverRegistrationMessageTemplate}
-              />
+              <DisbursementInviteMessage />
             )}
             {renderButtons("confirmation")}
           </form>
@@ -396,10 +394,7 @@ export const DisbursementDraftDetails = () => {
             futureBalance={futureBalance}
           />
           {!isKWA && (
-            <DisbursementInviteMessage
-              isEditMessage={false}
-              draftMessage={draftDetails?.details.receiverRegistrationMessageTemplate}
-            />
+            <DisbursementInviteMessage />
           )}
           <DisbursementInstructions
             variant={"preview"}
