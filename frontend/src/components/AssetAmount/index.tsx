@@ -1,5 +1,5 @@
 import { decimal } from "@/helpers/formatIntlNumber";
-import { formatKes } from "@/helpers/kesRates";
+import { formatAssetAmountAsKes } from "@/helpers/kesRates";
 
 import EurocLogoSrc from "@/assets/logo-euroc.svg";
 import UsdcLogoSrc from "@/assets/logo-usdc.svg";
@@ -26,7 +26,7 @@ export const AssetAmount: React.FC<AssetAmountProps> = ({
   }
 
   if (!showRaw && assetCode) {
-    return <span className="AssetAmount">{formatKes(amount, assetCode)}</span>;
+    return <span className="AssetAmount">{formatAssetAmountAsKes(amount, assetCode)}</span>;
   }
 
   const assets = [
