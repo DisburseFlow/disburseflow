@@ -288,7 +288,7 @@ func (s *defaultTenantsService) EnsureDefaultTenant(
 		UserFirstName:           cfg.DefaultTenantOwnerFirstName,
 		UserLastName:            cfg.DefaultTenantOwnerLastName,
 		UserEmail:               cfg.DefaultTenantOwnerEmail,
-		OrgName:                 "Default Organization",
+		OrgName:                 "SAPCONE",
 		UIBaseURL:               opts.SDPUIBaseURL,
 		BaseURL:                 opts.BaseURL,
 		NetworkType:             string(netType),
