@@ -149,6 +149,40 @@ body {
     list-style-type: disc;
   }
 
+  // --sds-clr-gray-01 is remapped to the page background, making all Notification
+  // backgrounds invisible. Override --Notification-color-* per variant globally.
+  .Notification--error {
+    --Notification-color-background: rgba(186, 26, 26, 0.07);
+    --Notification-color-border: rgba(186, 26, 26, 0.30);
+
+    &.Notification--filled {
+      --Notification-color-background: rgba(186, 26, 26, 0.11);
+    }
+  }
+
+  .Notification--success {
+    --Notification-color-background: rgba(47, 128, 62, 0.07);
+    --Notification-color-border: rgba(47, 128, 62, 0.30);
+
+    &.Notification--filled {
+      --Notification-color-background: rgba(47, 128, 62, 0.11);
+    }
+  }
+
+  .Notification--primary {
+    --Notification-color-background: rgba(151, 67, 14, 0.07);
+    --Notification-color-border: rgba(151, 67, 14, 0.30);
+  }
+
+  .Notification--warning {
+    --Notification-color-background: rgba(180, 120, 0, 0.07);
+    --Notification-color-border: rgba(180, 120, 0, 0.30);
+
+    &.Notification--filled {
+      --Notification-color-background: rgba(180, 120, 0, 0.11);
+    }
+  }
+
   .Input__side-element .PasswordMaskButton {
     width: pxToRem(22px);
     height: pxToRem(22px);
@@ -369,7 +403,16 @@ body {
   margin-bottom: pxToRem(32px);
 
   &--home {
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
+
+    // SAPCONE accent stripe on each dashboard stat card
+    .Card:first-child {
+      border-top: 3px solid #b23e25;
+    }
+
+    .Card:nth-child(2) {
+      border-top: 3px solid #2f803e;
+    }
   }
 
   &--disbursementDetails {
@@ -764,6 +807,26 @@ body {
     display: grid;
     gap: pxToRem(24px);
     grid-template-columns: 1fr 1fr;
+  }
+
+  &__technicalDetails {
+    display: flex;
+    flex-direction: column;
+    gap: pxToRem(12px);
+
+    summary {
+      cursor: pointer;
+      font-family: var(--sdp-ff-base);
+      font-size: pxToRem(14px);
+      font-weight: 600;
+      color: var(--sdp-on-surface-variant);
+      padding: pxToRem(8px) 0;
+    }
+
+    // Space out the cards revealed once expanded
+    > *:not(summary) {
+      margin-top: pxToRem(12px);
+    }
   }
 
   &__buttons {
@@ -1358,32 +1421,6 @@ body {
     background: var(--sdp-surface-container-lowest);
     position: relative;
     overflow-y: auto;
-
-    // SDS Notification uses --sds-clr-gray-01 (= card bg) and filled error uses
-    // --sds-clr-red-02 (#fff8f8) — both invisible against the card surface.
-    // Override via the correct --Notification-color-* properties per variant.
-    .Notification--error {
-      --Notification-color-background: rgba(186, 26, 26, 0.07);
-      --Notification-color-border: rgba(186, 26, 26, 0.30);
-
-      &.Notification--filled {
-        --Notification-color-background: rgba(186, 26, 26, 0.11);
-      }
-    }
-
-    .Notification--success {
-      --Notification-color-background: rgba(47, 128, 62, 0.07);
-      --Notification-color-border: rgba(47, 128, 62, 0.30);
-
-      &.Notification--filled {
-        --Notification-color-background: rgba(47, 128, 62, 0.11);
-      }
-    }
-
-    .Notification--primary {
-      --Notification-color-background: rgba(151, 67, 14, 0.07);
-      --Notification-color-border: rgba(151, 67, 14, 0.30);
-    }
 
     &__themeSwitch {
       position: absolute;

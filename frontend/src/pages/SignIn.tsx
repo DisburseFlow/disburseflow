@@ -5,7 +5,7 @@ import { useDispatch } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
 import { v4 as uuidv4 } from "uuid";
 
-import { Button, Heading, Input, Link, Notification, ThemeSwitch } from "@stellar/design-system";
+import { Button, Heading, Input, Link, Notification } from "@stellar/design-system";
 
 import { ErrorWithExtras } from "@/components/ErrorWithExtras";
 import { InfoTooltip } from "@/components/InfoTooltip";
@@ -13,7 +13,7 @@ import { InfoTooltip } from "@/components/InfoTooltip";
 import { signInAction } from "@/store/ducks/userAccount";
 
 import { USE_SSO, SINGLE_TENANT_MODE } from "@/constants/envVariables";
-import { LOCAL_STORAGE_DEVICE_ID, ORG_NAME_INFO_TEXT, PROJECT_NAME, Routes } from "@/constants/settings";
+import { LOCAL_STORAGE_DEVICE_ID, ORG_NAME_INFO_TEXT, Routes } from "@/constants/settings";
 
 import { getSdpTenantName } from "@/helpers/getSdpTenantName";
 import { localStorageTenantName } from "@/helpers/localStorageTenantName";

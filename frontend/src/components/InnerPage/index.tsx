@@ -67,16 +67,10 @@ export const InnerPage = ({ children, isNarrow, isCardLayout }: InnerPageProps) 
       icon: <Icon.BankNote01 />,
     },
     {
-      id: "nav-wallet-providers",
-      label: "Wallet Providers",
-      route: Routes.WALLET_PROVIDERS,
-      icon: <Icon.Wallet01 />,
-    },
-    {
       id: "nav-distribution-account",
-      label: "Distribution Account",
+      label: "Fund Account",
       route: Routes.DISTRIBUTION_ACCOUNT,
-      icon: <Icon.Dataflow01 />,
+      icon: <Icon.Coins03 />,
     },
     {
       id: "nav-analytics",
@@ -87,12 +81,6 @@ export const InnerPage = ({ children, isNarrow, isCardLayout }: InnerPageProps) 
   ];
 
   const ITEMS_BOTTOM: NavItem[] = [
-    {
-      id: "nav-api-keys",
-      label: "API Keys",
-      route: Routes.API_KEYS,
-      icon: <Icon.Key01 />,
-    },
     {
       id: "nav-profile",
       label: "Profile",

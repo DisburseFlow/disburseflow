@@ -54,11 +54,8 @@
     margin-right: auto;
 
     &--narrow {
-      width: pxToRem(584px);
-      padding-left: 0;
-      padding-right: 0;
-      margin-left: auto;
-      margin-right: auto;
+      width: 100%;
+      max-width: pxToRem(2000px);
     }
   }
 
