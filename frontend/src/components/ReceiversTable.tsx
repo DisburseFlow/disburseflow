@@ -77,8 +77,6 @@ export const ReceiversTable: React.FC<ReceiversTableProps> = ({
             <Checkbox id="receivers-select-all" fieldSize="xs" />
           </Table.HeaderCell> */}
             <Table.HeaderCell>Contact info</Table.HeaderCell>
-            <Table.HeaderCell width="12rem">Wallet provider(s)</Table.HeaderCell>
-            <Table.HeaderCell textAlign="right">Wallets registered</Table.HeaderCell>
             <Table.HeaderCell textAlign="right">Total payments</Table.HeaderCell>
             <Table.HeaderCell textAlign="right">Successful</Table.HeaderCell>
             <Table.HeaderCell
@@ -106,10 +104,6 @@ export const ReceiversTable: React.FC<ReceiversTableProps> = ({
                     {renderReceiverContactInfoItems(d.phoneNumber, d.email)}
                   </Link>
                 </Table.BodyCell>
-                <Table.BodyCell width="12rem" title={d.walletProvider.join(", ")}>
-                  {d.walletProvider.join(", ")}
-                </Table.BodyCell>
-                <Table.BodyCell textAlign="right">{d.walletsRegisteredCount || "-"}</Table.BodyCell>
                 <Table.BodyCell textAlign="right">{d.totalPaymentsCount}</Table.BodyCell>
                 <Table.BodyCell textAlign="right">{d.successfulPaymentsCounts}</Table.BodyCell>
                 <Table.BodyCell width="10rem">

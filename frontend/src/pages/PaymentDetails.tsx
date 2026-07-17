@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+
 import { useNavigate, useParams } from "react-router-dom";
+
 import {
   Button,
   Card,
@@ -8,31 +10,33 @@ import {
   Link,
   Modal,
   Notification,
-  Profile,
 } from "@stellar/design-system";
 
-import { usePaymentsPaymentId } from "@/apiQueries/usePaymentsPaymentId";
-import { useCancelPayment } from "@/apiQueries/useCancelPayment";
-import { useReceiversReceiverId } from "@/apiQueries/useReceiversReceiverId";
+import { AssetAmount } from "@/components/AssetAmount";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
+import { DeliveryConfirmation } from "@/components/DeliveryConfirmation";
+import { ErrorWithExtras } from "@/components/ErrorWithExtras";
+import { MultipleAmounts } from "@/components/MultipleAmounts";
+import { PaymentStatus } from "@/components/PaymentStatus";
+import { ReceiverStatus } from "@/components/ReceiverStatus";
+import { RetryFailedPayment } from "@/components/RetryFailedPayment";
+import { SectionHeader } from "@/components/SectionHeader";
+import { Table } from "@/components/Table";
+
 import { STELLAR_EXPERT_URL } from "@/constants/envVariables";
 import { Routes, CANCELED_PAYMENT_STATUS, READY_PAYMENT_STATUS } from "@/constants/settings";
+
+import { useCancelPayment } from "@/apiQueries/useCancelPayment";
+import { usePaymentsPaymentId } from "@/apiQueries/usePaymentsPaymentId";
+import { useReceiversReceiverId } from "@/apiQueries/useReceiversReceiverId";
+
 import { formatDateTime, formatDateTimeWithSeconds } from "@/helpers/formatIntlDateTime";
-import { shortenString } from "@/helpers/shortenString";
 import { formatPaymentDetails } from "@/helpers/formatPaymentDetails";
 import {
   getReceiverContactInfoTitle,
   renderReceiverContactInfoItems,
 } from "@/helpers/receiverContactInfo";
-
-import { Breadcrumbs } from "@/components/Breadcrumbs";
-import { SectionHeader } from "@/components/SectionHeader";
-import { Table } from "@/components/Table";
-import { PaymentStatus } from "@/components/PaymentStatus";
-import { ReceiverStatus } from "@/components/ReceiverStatus";
-import { AssetAmount } from "@/components/AssetAmount";
-import { MultipleAmounts } from "@/components/MultipleAmounts";
-import { RetryFailedPayment } from "@/components/RetryFailedPayment";
-import { ErrorWithExtras } from "@/components/ErrorWithExtras";
+import { shortenString } from "@/helpers/shortenString";
 
 import { PaymentDetailsReceiver } from "@/types";
 
@@ -205,7 +209,7 @@ export const PaymentDetails = () => {
                   </div>
 
                   <div className="PaymentDetails__info">
-                    <label className="Label">Stellar transaction ID</label>
+                    <label className="Label">Payment reference</label>
                     <div>
                       {formattedPayment.transactionId ? (
                         <Link
@@ -213,6 +217,8 @@ export const PaymentDetails = () => {
                           title={formattedPayment.transactionId}
                         >
                           {shortenString(formattedPayment.transactionId, 15)}
+                          {" "}
+                          <Icon.LinkExternal01 />
                         </Link>
                       ) : (
                         "-"
@@ -224,21 +230,6 @@ export const PaymentDetails = () => {
 
               <Card>
                 <div className="PaymentDetails__wrapper">
-                  {formattedPayment.senderAddress ? (
-                    <div className="PaymentDetails__info">
-                      <label className="Label">Sender</label>
-                      <div>
-                        <Profile
-                          publicAddress={formattedPayment.senderAddress}
-                          size="md"
-                          isCopy
-                          isShort
-                          hideAvatar
-                        />
-                      </div>
-                    </div>
-                  ) : null}
-
                   <div className="PaymentDetails__info">
                     <label className="Label">External Payment ID</label>
                     <div>
@@ -249,13 +240,15 @@ export const PaymentDetails = () => {
                         : "-"}
                     </div>
                   </div>
+                </div>
+              </Card>
 
-                  {formattedPayment.circleTransferRequestId ? (
-                    <div className="PaymentDetails__info">
-                      <label className="Label">Circle Transfer ID</label>
-                      <div>{formattedPayment.circleTransferRequestId}</div>
-                    </div>
-                  ) : null}
+              <Card>
+                <div className="PaymentDetails__wrapper">
+                  <DeliveryConfirmation
+                    paymentId={formattedPayment.id}
+                    isPaymentSuccess={formattedPayment.status === "SUCCESS"}
+                  />
                 </div>
               </Card>
             </div>
@@ -313,8 +306,6 @@ export const PaymentDetails = () => {
                 />
               </Table.HeaderCell> */}
                   <Table.HeaderCell>Contact info</Table.HeaderCell>
-                  <Table.HeaderCell>Wallet address</Table.HeaderCell>
-                  <Table.HeaderCell>Wallet provider</Table.HeaderCell>
                   <Table.HeaderCell width="5.5rem" textAlign="right">
                     Total payments
                   </Table.HeaderCell>
@@ -347,20 +338,6 @@ export const PaymentDetails = () => {
                         "-"
                       )}
                     </Table.BodyCell>
-                    <Table.BodyCell width="7.5rem" allowOverflow>
-                      {receiver?.walletAddress ? (
-                        <Profile
-                          publicAddress={receiver.walletAddress}
-                          size="md"
-                          isCopy
-                          isShort
-                          hideAvatar
-                        />
-                      ) : (
-                        "-"
-                      )}
-                    </Table.BodyCell>
-                    <Table.BodyCell width="6rem">{receiver?.provider || "-"}</Table.BodyCell>
                     <Table.BodyCell width="5.5rem" textAlign="right">
                       {receiver?.totalPaymentsCount || "-"}
                     </Table.BodyCell>

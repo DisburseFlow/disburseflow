@@ -1,12 +1,17 @@
 import { useNavigate } from "react-router-dom";
-import { Link, Profile, Notification, Card } from "@stellar/design-system";
-import { Routes } from "@/constants/settings";
+
+import { Button, Icon, Link, Notification, Card } from "@stellar/design-system";
 
 import { AssetAmount } from "@/components/AssetAmount";
+import { ErrorWithExtras } from "@/components/ErrorWithExtras";
 import { PaymentStatus } from "@/components/PaymentStatus";
 import { Table } from "@/components/Table";
-import { ErrorWithExtras } from "@/components/ErrorWithExtras";
+
+import { Routes } from "@/constants/settings";
+
 import { formatDateTime } from "@/helpers/formatIntlDateTime";
+import { formatPaymentType } from "@/helpers/formatPaymentType";
+
 import { ApiPayment } from "@/types";
 
 interface PaymentsTableProps {
@@ -24,11 +29,7 @@ export const PaymentsTable = ({
 }: PaymentsTableProps) => {
   const navigate = useNavigate();
 
-  const handlePaymentClicked = (
-    event: React.MouseEvent<HTMLAnchorElement, MouseEvent>,
-    paymentId: string,
-  ) => {
-    event.preventDefault();
+  const handlePaymentClicked = (paymentId: string) => {
     navigate(`${Routes.PAYMENTS}/${paymentId}`);
   };
 
@@ -73,14 +74,13 @@ export const PaymentsTable = ({
             {/* <Table.HeaderCell>
             <Checkbox id="payments-select-all" fieldSize="xs" />
           </Table.HeaderCell> */}
-            <Table.HeaderCell>Payment ID</Table.HeaderCell>
-            <Table.HeaderCell>Wallet address</Table.HeaderCell>
+            <Table.HeaderCell>Transaction ID</Table.HeaderCell>
             <Table.HeaderCell>Disbursement name</Table.HeaderCell>
             <Table.HeaderCell width="9.375rem">Completed at</Table.HeaderCell>
             <Table.HeaderCell textAlign="right" width="8.125rem">
               Amount
             </Table.HeaderCell>
-            <Table.HeaderCell textAlign="right" width="4rem">
+            <Table.HeaderCell textAlign="right" width="9rem">
               Status
             </Table.HeaderCell>
             <Table.HeaderCell>Type</Table.HeaderCell>
@@ -95,26 +95,15 @@ export const PaymentsTable = ({
                 {/* <Table.BodyCell width="1rem">
                 <Checkbox id={`payment-${p.id}`} fieldSize="xs" />
               </Table.BodyCell> */}
-                <Table.BodyCell width="14rem" title={p.id}>
-                  <Link onClick={(event) => handlePaymentClicked(event, p.id)}>
-                    <span className="PaymentIDs__item">{p.id}</span>
-                    {p.external_payment_id ? (
-                      <span className="PaymentIDs__item">{p.external_payment_id}</span>
-                    ) : null}
-                  </Link>
-                </Table.BodyCell>
-                <Table.BodyCell width="7.5rem" allowOverflow>
-                  {p.receiver_wallet?.stellar_address ? (
-                    <Profile
-                      publicAddress={p.receiver_wallet?.stellar_address}
-                      size="md"
-                      isCopy
-                      isShort
-                      hideAvatar
-                    />
-                  ) : (
-                    "-"
-                  )}
+                <Table.BodyCell width="10rem" title={p.id}>
+                  <Button
+                    size="sm"
+                    variant="tertiary"
+                    icon={<Icon.FileCode01 />}
+                    onClick={() => handlePaymentClicked(p.id)}
+                  >
+                    {p.external_payment_id ?? "Transaction ID"}
+                  </Button>
                 </Table.BodyCell>
                 <Table.BodyCell width="7.5rem" title={p.disbursement?.name || "-"}>
                   {(() => {
@@ -144,7 +133,7 @@ export const PaymentsTable = ({
                   <PaymentStatus status={p.status} />
                 </Table.BodyCell>
                 <Table.BodyCell>
-                  <span className="Table-v2__cell--secondary">{p.type}</span>
+                  <span className="Table-v2__cell--secondary">{formatPaymentType(p)}</span>
                 </Table.BodyCell>
               </Table.BodyRow>
             ))}

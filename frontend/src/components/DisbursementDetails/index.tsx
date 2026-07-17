@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+
 import { BigNumber } from "bignumber.js";
 
 import { Card, Input, Select, Notification } from "@stellar/design-system";
@@ -30,6 +32,12 @@ import {
 } from "@/types";
 
 import "./styles.scss";
+
+const ASSET_DISPLAY_LABELS: Record<string, string> = {
+  USDC: "Kenyan Shilling (KES)",
+};
+
+const assetDisplayLabel = (code: string) => ASSET_DISPLAY_LABELS[code] ?? code;
 
 const SDP_EMBEDDED_WALLET_NAME = "embedded wallet";
 
@@ -286,6 +294,15 @@ export const DisbursementDetails: React.FC<DisbursementDetailsProps> = ({
     },
   });
 
+  // Auto-select the only available asset so the user doesn't need to pick it manually.
+  useEffect(() => {
+    if (derived.assetOptions.length === 1 && details.asset.id !== derived.assetOptions[0].id) {
+      const only = derived.assetOptions[0];
+      onChange?.({ ...details, asset: { id: only.id, code: only.code } });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [derived.assetOptions.length, details.asset.id]);
+
   const apiErrors = [
     registrationContactTypesError?.message,
     walletsError?.message,
@@ -394,13 +411,13 @@ export const DisbursementDetails: React.FC<DisbursementDetailsProps> = ({
       </div>
 
       <div>
-        <label className="Label Label--sm">Wallet provider</label>
+        <label className="Label Label--sm">Provider</label>
         <div className="DisbursementDetailsFields__value">{derived.labels.walletProvider}</div>
       </div>
 
       <div>
-        <label className="Label Label--sm">Asset</label>
-        <div className="DisbursementDetailsFields__value">{details.asset.code}</div>
+        <label className="Label Label--sm">Currency</label>
+        <div className="DisbursementDetailsFields__value">{assetDisplayLabel(details.asset.code)}</div>
       </div>
 
       <div>
@@ -462,7 +479,7 @@ export const DisbursementDetails: React.FC<DisbursementDetailsProps> = ({
 
       <Select
         id={FieldId.WALLET_ID}
-        label="Wallet provider"
+        label="Provider"
         fieldSize="sm"
         onChange={handleFieldChange}
         value={derived.selectValues.walletId}
@@ -476,21 +493,23 @@ export const DisbursementDetails: React.FC<DisbursementDetailsProps> = ({
         ))}
       </Select>
 
-      <Select
-        id={FieldId.ASSET_CODE}
-        label="Asset"
-        fieldSize="sm"
-        onChange={handleFieldChange}
-        value={derived.selectValues.assetId}
-        disabled={derived.disabled.asset}
-      >
-        {renderDropdownDefault(isWalletAssetsFetching)}
-        {derived.assetOptions.map((asset) => (
-          <option key={asset.id} value={asset.id}>
-            {asset.code}
-          </option>
-        ))}
-      </Select>
+      {derived.assetOptions.length !== 1 && (
+        <Select
+          id={FieldId.ASSET_CODE}
+          label="Currency"
+          fieldSize="sm"
+          onChange={handleFieldChange}
+          value={derived.selectValues.assetId}
+          disabled={derived.disabled.asset}
+        >
+          {renderDropdownDefault(isWalletAssetsFetching)}
+          {derived.assetOptions.map((asset) => (
+            <option key={asset.id} value={asset.id}>
+              {assetDisplayLabel(asset.code)}
+            </option>
+          ))}
+        </Select>
+      )}
 
       <Select
         id={FieldId.VERIFICATION_FIELD}
