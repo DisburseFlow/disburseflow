@@ -233,7 +233,7 @@ export const DisbursementsNew = () => {
             futureBalance={futureBalance}
           />
           {!isKWA && (
-            <DisbursementInviteMessage isEditMessage={false} draftMessage={customMessage} />
+            <DisbursementInviteMessage />
           )}
           <DisbursementInstructions
             variant="preview"
@@ -249,9 +249,10 @@ export const DisbursementsNew = () => {
     }
 
     const successMessageArray: string[] = [
-      "Payments will begin automatically",
-      isKWA ? "" : " to receivers who have registered their wallet",
-      ". Click 'View' to track your disbursement in real-time.",
+      isKWA
+        ? "Payments will begin automatically."
+        : "Wallets are being created for your receivers in the background — no action needed from them. Payments will begin automatically as each wallet becomes ready.",
+      " Click 'View' to track your disbursement in real-time.",
     ].filter((m) => Boolean(m));
 
     // Confirmation
@@ -288,7 +289,7 @@ export const DisbursementsNew = () => {
               csvFile={csvFile}
             />
             {!isKWA && (
-              <DisbursementInviteMessage isEditMessage={false} draftMessage={customMessage} />
+              <DisbursementInviteMessage />
             )}
 
             {renderButtons("confirmation")}
@@ -328,15 +329,9 @@ export const DisbursementsNew = () => {
 
           {!isKWA && (
             <DisbursementInviteMessage
-              isEditMessage={true}
               onChange={(updatedDisbursementInviteMessage) => {
                 setCustomMessage(updatedDisbursementInviteMessage);
               }}
-              disabledReasonForTooltip={
-                hasWallet(draftDetails?.registrationContactType)
-                  ? "No invitation message will be sent because you're registering receivers with wallets addresses."
-                  : undefined
-              }
             />
           )}
           <DisbursementInstructions
