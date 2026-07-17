@@ -16,7 +16,7 @@ export const useAssetsByWallet = ({
       if (!walletId && !hasWallet(registrationContactType)) {
         return;
       }
-      const url = new URL(`${API_URL}/assets`);
+      const url = new URL(`${API_URL}/assets`, window.location.origin);
       if (walletId) {
         url.searchParams.append("wallet", walletId);
       }

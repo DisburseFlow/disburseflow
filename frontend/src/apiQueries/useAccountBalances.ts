@@ -38,7 +38,7 @@ export const useAccountBalances = (stellarAddress: string | undefined) => {
         return accountInfo?.balances ?? [];
       } // If the address is a Stellar contract address (starts with "C"), fetch from RPC
       else {
-        const assetsUrl = new URL(`${API_URL}/assets`);
+        const assetsUrl = new URL(`${API_URL}/assets`, window.location.origin);
         const assets: ApiAsset[] = await fetchApi(assetsUrl.toString());
         const rpcServer = createAuthenticatedRpcServer("user");
 

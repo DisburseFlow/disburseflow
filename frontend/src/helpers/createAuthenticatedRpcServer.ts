@@ -21,7 +21,7 @@ export const createAuthenticatedRpcServer = (
 
   const rpcProxyUrl = `${API_URL}/rpc/${authType}`;
 
-  const isHttpUrl = new URL(rpcProxyUrl).protocol === "http:";
+  const isHttpUrl = new URL(rpcProxyUrl, window.location.origin).protocol === "http:";
   return new rpc.Server(rpcProxyUrl, {
     allowHttp: isHttpUrl,
     headers: {
