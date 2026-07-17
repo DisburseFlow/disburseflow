@@ -19,6 +19,7 @@ import (
 	"github.com/stellar/stellar-disbursement-platform-backend/db"
 	"github.com/stellar/stellar-disbursement-platform-backend/internal/bridge"
 	"github.com/stellar/stellar-disbursement-platform-backend/internal/circle"
+	"github.com/stellar/stellar-disbursement-platform-backend/internal/kenyanbank"
 	"github.com/stellar/stellar-disbursement-platform-backend/internal/crashtracker"
 	"github.com/stellar/stellar-disbursement-platform-backend/internal/data"
 	"github.com/stellar/stellar-disbursement-platform-backend/internal/dependencyinjection"
@@ -105,6 +106,7 @@ type ServeOptions struct {
 	CircleService               circle.ServiceInterface
 	CircleAPIType               circle.APIType
 	BridgeService               bridge.ServiceInterface
+	KenyanBankService           kenyanbank.ServiceInterface
 
 	EmbeddedWalletService     services.EmbeddedWalletServiceInterface
 	WebAuthnSessionTTLSeconds int
@@ -643,6 +645,28 @@ func handleHTTP(o ServeOptions) *chi.Mux {
 				DistributionAccountResolver: o.SubmitterEngine.DistributionAccountResolver,
 				MonitorService:              o.MonitorService,
 			}.Patch)
+		})
+
+		// Kenyan bank integration endpoints
+		kbHandler := httphandler.KenyanBankHandler{
+			Service: &kenyanbank.Service{
+				Model: o.Models.KenyanBankIntegration,
+			},
+		}
+		r.Route("/kenyan-bank-integration", func(r chi.Router) {
+			r.With(middleware.RequirePermission(
+				data.ReadOrganization,
+				middleware.AnyRoleMiddleware(authManager, data.GetAllRoles()...),
+			)).Get("/", kbHandler.Get)
+
+			r.With(middleware.RequirePermission(
+				data.WriteOrganization,
+				middleware.AnyRoleMiddleware(authManager, data.OwnerUserRole, data.FinancialControllerUserRole),
+			)).Patch("/", kbHandler.Patch)
+
+			// Webhook does not require a session token — it is called by the bank,
+			// not by a browser. It is rate-limited at the reverse-proxy layer.
+			r.Post("/webhook", kbHandler.Webhook)
 		})
 
 		// Bridge integration endpoints
