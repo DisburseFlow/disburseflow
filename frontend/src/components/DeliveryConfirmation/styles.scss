@@ -1,0 +1,66 @@
+@use "../../styles/styles-utils.scss" as *;
+
+.DeliveryConfirmation {
+  display: flex;
+  flex-direction: column;
+  gap: pxToRem(8px);
+  padding: pxToRem(16px);
+  border-radius: pxToRem(8px);
+  border: 1px solid var(--sdp-outline-variant);
+  background: var(--sdp-surface-container-low);
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: pxToRem(8px);
+    color: var(--sdp-on-surface-variant);
+
+    svg {
+      width: pxToRem(16px);
+      height: pxToRem(16px);
+      stroke: currentColor;
+      flex-shrink: 0;
+    }
+  }
+
+  &__title {
+    font-size: pxToRem(13px);
+    font-weight: 600;
+    line-height: pxToRem(20px);
+  }
+
+  &__hint {
+    font-size: pxToRem(12px);
+    color: var(--sdp-on-surface-variant);
+    margin: 0;
+  }
+
+  &__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: pxToRem(12px);
+    font-size: pxToRem(13px);
+    color: var(--sdp-on-surface);
+  }
+
+  &__ts {
+    color: var(--sdp-on-surface-variant);
+  }
+
+  &__notes {
+    font-size: pxToRem(13px);
+    color: var(--sdp-on-surface-variant);
+    font-style: italic;
+    padding-left: pxToRem(24px);
+  }
+
+  // ── Confirmed state ───────────────────────────────────────────────────
+  &--confirmed {
+    border-color: rgba(47, 128, 62, 0.35);
+    background: rgba(47, 128, 62, 0.06);
+
+    .DeliveryConfirmation__header {
+      color: #2f803e;
+    }
+  }
+}

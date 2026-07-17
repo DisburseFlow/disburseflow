@@ -1,2 +1,6 @@
-phone,id,amount,verification
-+13163955627,4ba1,.1,1987-12-01
+phone,id,name,idno,amount
++254700000010,2ba2,Amina Hassan,29374810,12
++254700000011,2ba4,Fatuma Abdi,38291047,14
++254700000012,2ba6,Halima Wako,47381920,16
++254700000013,2ba8,Ibrahim Golo,56473829,18
++254700000014,2ba0,Muktar Dida,65829374,20
