@@ -65,17 +65,29 @@ $BIN tenants ensure-default || echo "⚠️  tenant ensure-default failed (may a
 echo "✅ Tenant setup complete."
 
 # =============================================================================
-# Start nginx (serves the React frontend on port 80)
+# Start nginx (serves the React frontend on the platform-assigned public port).
+#
+# Render (and similar PaaS) inject a PORT env var naming the port that must
+# receive public traffic. The Go backend's own "port" config option reads
+# that same env var name, so if left ambient, Render's PORT would collide
+# with the backend's and route traffic straight to it, bypassing nginx.
+# We resolve this by making nginx listen on $PORT, and pinning the backend to
+# a fixed internal port passed explicitly via --port (ignoring env PORT).
 # =============================================================================
+PUBLIC_PORT="${PORT:-80}"
+BACKEND_PORT=8000
+
+sed -i "s/__PUBLIC_PORT__/${PUBLIC_PORT}/" /etc/nginx/http.d/default.conf
+
 nginx -g "daemon off;" &
 
 # Wait briefly for nginx to bind its port
 sleep 1
 
 # =============================================================================
-# Start the Go backend (listens on port 8000)
+# Start the Go backend on its fixed internal port (nginx proxies to it above)
 # =============================================================================
-$BIN serve &
+$BIN serve --port "${BACKEND_PORT}" &
 BACKEND_PID=$!
 
 # Forward SIGTERM/SIGINT to the backend process
