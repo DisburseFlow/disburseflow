@@ -65,6 +65,16 @@ $BIN tenants ensure-default || echo "⚠️  tenant ensure-default failed (may a
 echo "✅ Tenant setup complete."
 
 # =============================================================================
+# Ensure channel accounts exist (idempotent — dynamically adjusts to match
+# NUM_CHANNEL_ACCOUNTS, safe to run on every deploy). TSS refuses to start
+# without at least one.
+# =============================================================================
+echo "⏳ Ensuring channel accounts..."
+$BIN channel-accounts ensure "${NUM_CHANNEL_ACCOUNTS:-3}" || echo "⚠️  channel-accounts ensure failed"
+
+echo "✅ Channel accounts ready."
+
+# =============================================================================
 # Start nginx (serves the React frontend on the platform-assigned public port).
 #
 # Render (and similar PaaS) inject a PORT env var naming the port that must
