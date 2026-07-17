@@ -1,140 +1,39 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
-import { useDispatch } from "react-redux";
-
-import { Card, RadioButton, Textarea } from "@stellar/design-system";
-
-import { InfoTooltip } from "@/components/InfoTooltip";
-
-import { getOrgInfoAction } from "@/store/ducks/organization";
-
-import { useRedux } from "@/hooks/useRedux";
-
-import { AppDispatch } from "@/store";
+import { Card } from "@stellar/design-system";
 
 import "../ReceiverInviteMessage/styles.scss";
 
+// Receivers are registered automatically by the backend (a wallet is created
+// and funded for their phone number in the background, shortly after CSV
+// upload — see internal/scheduler/jobs/wallet_provisioning_job.go) — there's
+// no SEP-24 "click this link to register" step, so there's nothing for the
+// admin to customize here. This used to be an editable invite message with a
+// registration link; it's now a fixed, informational note plus a fixed
+// message template, since the old one always appended a registration link
+// that would never apply to these receivers.
+const RECEIVER_MESSAGE_TEMPLATE = "You have received a payment from {{.OrganizationName}}.";
+
 interface DisbursementInviteMessageProps {
-  draftMessage?: string;
-  disabledReasonForTooltip?: string;
-  isEditMessage: boolean;
   onChange?: (message: string) => void;
 }
 
-export const DisbursementInviteMessage = ({
-  draftMessage,
-  isEditMessage,
-  disabledReasonForTooltip,
-  onChange,
-}: DisbursementInviteMessageProps) => {
-  enum radioValue {
-    ORGANIZATION = "organization",
-    CUSTOM = "custom",
-  }
-
-  const standardOrgMessage =
-    "You have a payment waiting for you from the {{.OrganizationName}}. Click {{.RegistrationLink}} to register.";
-  const customMessagePlaceholder =
-    "Input your registration invitation message for this disbursement here in the appropriate language. Make sure to say which organization the transaction is coming from. Keep your message short. A link to the wallet will be appended at the end.";
-
-  const { organization } = useRedux("organization");
-  const dispatch: AppDispatch = useDispatch();
-
-  const [selectedOption, setSelectedOption] = useState(radioValue.ORGANIZATION);
-  const [customMessageInput, setCustomMessageInput] = useState("");
-
+export const DisbursementInviteMessage = ({ onChange }: DisbursementInviteMessageProps) => {
   useEffect(() => {
-    dispatch(getOrgInfoAction());
-  }, [dispatch]);
-
-  const handleOptionChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.value === radioValue.ORGANIZATION) {
-      updateMessage("");
-      setSelectedOption(radioValue.ORGANIZATION);
-    } else {
-      setSelectedOption(radioValue.CUSTOM);
-    }
-  };
-
-  const updateMessage = (updatedDisbursementInviteMessage: string) => {
-    setCustomMessageInput(updatedDisbursementInviteMessage);
-    // Updating parent
-    if (onChange) {
-      onChange(updatedDisbursementInviteMessage);
-    }
-  };
+    onChange?.(RECEIVER_MESSAGE_TEMPLATE);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
-    <>
-      <Card>
-        <div className="CardStack__card ReceiverInviteMessage">
-          <InfoTooltip infoText={disabledReasonForTooltip} hideTooltip={!disabledReasonForTooltip}>
-            <div className="CardStack__title">Customize Invite</div>
-          </InfoTooltip>
+    <Card>
+      <div className="CardStack__card ReceiverInviteMessage">
+        <div className="CardStack__title">Receiver notification</div>
 
-          <div className="Note">
-            You can use the organization default message or customized text to invite your receivers
-            to set up a wallet and receive funds for this disbursement. It contains a link to the
-            appropriate wallet at the end of the message. Please check all values for accuracy.
-          </div>
-
-          {isEditMessage && (
-            <div className="ReceiverInviteMessage__options">
-              <RadioButton
-                id="msg-std"
-                name="disbursement-message"
-                label="Default message"
-                fieldSize="sm"
-                value={radioValue.ORGANIZATION}
-                onChange={handleOptionChange}
-                disabled={!!disabledReasonForTooltip}
-                checked={selectedOption === radioValue.ORGANIZATION}
-              />
-              <RadioButton
-                id="msg-cst"
-                name="disbursement-message"
-                label="Custom message"
-                fieldSize="sm"
-                value={radioValue.CUSTOM}
-                onChange={handleOptionChange}
-                disabled={!!disabledReasonForTooltip}
-                checked={selectedOption === radioValue.CUSTOM}
-              />
-            </div>
-          )}
-          {selectedOption === radioValue.CUSTOM ? (
-            <form className="ReceiverInviteMessage__form">
-              <Textarea
-                fieldSize="sm"
-                id="textarea-custom-input"
-                rows={5}
-                placeholder={customMessagePlaceholder}
-                value={customMessageInput}
-                disabled={!!disabledReasonForTooltip}
-                onChange={(event) => {
-                  updateMessage(event.target.value);
-                }}
-              ></Textarea>
-            </form>
-          ) : (
-            <div className="ReceiverInviteMessage__form">
-              <Textarea
-                fieldSize="sm"
-                id="textarea-standard"
-                disabled
-                rows={5}
-                value={
-                  isEditMessage
-                    ? organization.data.receiverRegistrationMessageTemplate || standardOrgMessage
-                    : (draftMessage && draftMessage.trim()) ||
-                      organization.data.receiverRegistrationMessageTemplate ||
-                      standardOrgMessage
-                }
-              ></Textarea>
-            </div>
-          )}
+        <div className="Note">
+          Receivers won&rsquo;t be asked to register a wallet — one is created and funded for
+          them automatically in the background after this disbursement is submitted.
         </div>
-      </Card>
-    </>
+      </div>
+    </Card>
   );
 };
