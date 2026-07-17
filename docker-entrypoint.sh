@@ -77,7 +77,17 @@ echo "✅ Tenant setup complete."
 PUBLIC_PORT="${PORT:-80}"
 BACKEND_PORT=8000
 
-sed -i "s/__PUBLIC_PORT__/${PUBLIC_PORT}/" /etc/nginx/http.d/default.conf
+# The public port is platform-assigned and may collide with our internal
+# default (e.g. a Render service configured with PORT=8000) — nginx binds
+# PUBLIC_PORT first, so the backend must fall back to a different port.
+if [ "${BACKEND_PORT}" = "${PUBLIC_PORT}" ]; then
+    BACKEND_PORT=8080
+fi
+
+sed -i \
+    -e "s/__PUBLIC_PORT__/${PUBLIC_PORT}/" \
+    -e "s/__BACKEND_PORT__/${BACKEND_PORT}/" \
+    /etc/nginx/http.d/default.conf
 
 nginx -g "daemon off;" &
 
@@ -85,7 +95,7 @@ nginx -g "daemon off;" &
 sleep 1
 
 # =============================================================================
-# Start the Go backend on its fixed internal port (nginx proxies to it above)
+# Start the Go backend on its internal port (nginx proxies to it above)
 # =============================================================================
 $BIN serve --port "${BACKEND_PORT}" &
 BACKEND_PID=$!
